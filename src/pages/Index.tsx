@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -120,9 +121,11 @@ const Index = () => {
               <Download className="h-5 w-5 mr-2" />
               Get Started Free
             </Button>
-            <Button variant="outline" size="lg" className="btn-ghost-cyber px-8 py-4 text-lg">
-              <Eye className="h-5 w-5 mr-2" />
-              View Demo
+            <Button variant="outline" size="lg" className="btn-ghost-cyber px-8 py-4 text-lg" asChild>
+              <Link to="/demo">
+                <Eye className="h-5 w-5 mr-2" />
+                View Demo
+              </Link>
             </Button>
           </div>
           
