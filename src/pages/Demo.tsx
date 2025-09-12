@@ -150,7 +150,7 @@ const Demo = () => {
   };
 
   const analyzeRequest = () => {
-    if (!request.trim()) return;
+    if (!request?.trim()) return;
     
     setIsAnalyzing(true);
     
@@ -270,7 +270,7 @@ Host: www.example.com`
                 <div className="flex gap-2">
                   <Button 
                     onClick={analyzeRequest}
-                    disabled={!request.trim() || isAnalyzing}
+                    disabled={!request?.trim() || isAnalyzing}
                     className="btn-hero"
                   >
                     {isAnalyzing ? (
