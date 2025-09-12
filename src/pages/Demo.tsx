@@ -62,16 +62,32 @@ const Demo = () => {
     const threats: any[] = [];
     const decodedRequest = decodeURIComponent(requestText);
     
-    // SQL Injection Detection
+    // Normalize request for better detection
+    const normalizedRequest = requestText.toLowerCase();
+    const normalizedDecoded = decodedRequest.toLowerCase();
+    
+    // SQL Injection Detection with improved accuracy
     securityPatterns.sqlInjection.forEach((pattern, index) => {
-      if (pattern.test(requestText) || pattern.test(decodedRequest)) {
-        threats.push({
-          type: "SQL Injection",
-          severity: "high",
-          pattern: pattern.toString(),
-          description: "Potential SQL injection attempt detected",
-          location: "Query parameters or request body"
-        });
+      const match1 = pattern.test(requestText);
+      const match2 = pattern.test(decodedRequest);
+      
+      if (match1 || match2) {
+        // Additional validation to reduce false positives
+        const hasValidSqlKeywords = /\b(select|union|insert|update|delete|drop|create|alter|exec|execute)\b/i.test(requestText) ||
+                                   /\b(select|union|insert|update|delete|drop|create|alter|exec|execute)\b/i.test(decodedRequest);
+        
+        const hasSqlInjectionPattern = /('.*or.*'|'.*and.*'|--|\/\*|\*\/|;|\bunion\b.*\bselect\b)/i.test(requestText) ||
+                                      /('.*or.*'|'.*and.*'|--|\/\*|\*\/|;|\bunion\b.*\bselect\b)/i.test(decodedRequest);
+        
+        if (hasValidSqlKeywords || hasSqlInjectionPattern) {
+          threats.push({
+            type: "SQL Injection",
+            severity: "high",
+            pattern: pattern.toString(),
+            description: "SQL injection attack detected - unauthorized database access attempt",
+            location: "Query parameters or request body"
+          });
+        }
       }
     });
 
