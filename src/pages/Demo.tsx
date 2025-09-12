@@ -21,40 +21,78 @@ const Demo = () => {
   const [analysis, setAnalysis] = useState<any>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-  // Security patterns for detection
+  // Enhanced security patterns for bulletproof detection
   const securityPatterns = {
     sqlInjection: [
-      /('|"|`)(.*)(OR|AND)(.*)(=|LIKE)/i,
-      /(UNION|SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER)/i,
-      /('.*OR.*'=')/i,
-      /(--|\*\/|\/\*)/,
-      /(exec|execute|sp_|xp_)/i
+      // Classic SQL injection with quotes and OR/AND logic
+      /('|\"|`)(\s*)(or|and)(\s*)('|\"|`)(\s*)(=|like|in)(\s*)('|\"|`)/i,
+      // SQL injection with typical payloads
+      /('|\"|`)(\s*)(or|and)(\s*)(\d+|\w+)(\s*)(=|like|in)(\s*)(\d+|\w+)/i,
+      // UNION based attacks
+      /\b(union)(\s+)(select|all)\b/i,
+      // SQL injection with comments
+      /('|\"|`)(\s*)(or|and)(\s*)('|\"|`)(\s*)(=|like|in)(\s*)('|\"|`)(\s*)(-{2,}|\/\*)/i,
+      // Time-based SQL injection
+      /\b(sleep|waitfor|delay|benchmark)\s*\(/i,
+      // Boolean-based blind SQL injection
+      /('|\"|`)(\s*)(or|and)(\s*)(if|case|when)\s*\(/i,
+      // SQL functions in injection context
+      /('|\"|`)(\s*)(or|and)(\s*)(\w+\s*=\s*)?(\w+)\s*\(/i,
+      // SQL injection ending with comment
+      /('|\"|`)(\s*)(or|and)(\s*).*(-{2,})/i,
+      // Stacked queries
+      /;\s*(select|insert|update|delete|drop|create|alter|exec)\b/i
     ],
     xss: [
-      /<script[^>]*>.*?<\/script>/gi,
-      /<iframe[^>]*>.*?<\/iframe>/gi,
-      /javascript:/i,
-      /on(click|load|error|focus|blur|change|submit)=/i,
-      /<img[^>]*onerror/i,
-      /eval\s*\(/i,
-      /<svg[^>]*onload/i,
-      /<details[^>]*ontoggle/i
-    ],
-    csrf: [
-      /X-CSRF-Token/i,
-      /csrf_token/i,
-      /_token/i
+      // Script tags
+      /<script[\s\S]*?>[\s\S]*?<\/script>/gi,
+      /<script[\s\S]*?>/gi,
+      // Event handlers
+      /\bon(load|click|error|focus|blur|change|submit|mouseover|mouseout)\s*=/i,
+      // JavaScript protocol
+      /javascript\s*:/i,
+      // Image with onerror
+      /<img[\s\S]*?onerror[\s\S]*?=/i,
+      // SVG with script content
+      /<svg[\s\S]*?onload[\s\S]*?=/i,
+      // Iframe injection
+      /<iframe[\s\S]*?src[\s\S]*?=/i,
+      // Details/summary with ontoggle
+      /<(details|summary)[\s\S]*?ontoggle[\s\S]*?=/i,
+      // Eval functions
+      /\beval\s*\(/i,
+      // HTML5 form elements with event handlers
+      /<(input|textarea|select)[\s\S]*?on\w+[\s\S]*?=/i
     ],
     pathTraversal: [
-      /\.\.\//,
-      /\.\.\\/,
-      /%2e%2e%2f/i,
-      /%252e%252e%252f/i
+      // Directory traversal patterns
+      /(\.\.[\/\\]){2,}/,
+      // URL encoded traversal
+      /(%2e%2e[%2f%5c]){2,}/i,
+      // Double URL encoded
+      /(%252e%252e[%252f%255c]){2,}/i,
+      // Absolute path access to sensitive files
+      /[\/\\](etc[\/\\]passwd|windows[\/\\]system32|boot\.ini)/i,
+      // Null byte injection
+      /%00/i
     ],
     commandInjection: [
-      /(\||&|;|`|\$\()/,
-      /(nc|netcat|wget|curl)\s/i,
-      /\/bin\/(sh|bash|zsh|csh)/i
+      // Command separators with commands
+      /[;&|`]\s*(ls|dir|cat|type|whoami|id|ps|netstat|ifconfig|pwd|uname)/i,
+      // Backticks with commands
+      /`[\s\S]*?(ls|dir|cat|type|whoami|id|ps|netstat|ifconfig|pwd|uname)[\s\S]*?`/i,
+      // Shell command substitution
+      /\$\([\s\S]*?(ls|dir|cat|type|whoami|id|ps|netstat|ifconfig|pwd|uname)[\s\S]*?\)/i,
+      // Network tools
+      /\b(nc|netcat|wget|curl|ping|nslookup|dig)\s+/i,
+      // Shell paths
+      /[\/\\](bin[\/\\])?(sh|bash|zsh|csh|cmd|powershell)\b/i
+    ],
+    ldapInjection: [
+      // LDAP injection patterns
+      /\*\)\(|\)\(\*/,
+      /\(\|\(/,
+      /\)\(objectClass=\*/i
     ]
   };
 
@@ -66,23 +104,20 @@ const Demo = () => {
     const normalizedRequest = requestText.toLowerCase();
     const normalizedDecoded = decodedRequest.toLowerCase();
     
-    // SQL Injection Detection with improved accuracy
+    // SQL Injection Detection with enhanced accuracy
     securityPatterns.sqlInjection.forEach((pattern, index) => {
       const match1 = pattern.test(requestText);
       const match2 = pattern.test(decodedRequest);
       
       if (match1 || match2) {
-        // Additional validation to reduce false positives
-        const hasValidSqlKeywords = /\b(select|union|insert|update|delete|drop|create|alter|exec|execute)\b/i.test(requestText) ||
-                                   /\b(select|union|insert|update|delete|drop|create|alter|exec|execute)\b/i.test(decodedRequest);
+        // Check if it's a legitimate query parameter vs malicious injection
+        const isLegitimateQuery = /^[a-zA-Z0-9\s\-_+%&=.,:;()\[\]{}@#!?<>|~/\\]*$/.test(requestText) && 
+                                 !/(union\s+select|or\s+'?\d+\s*=\s*\d+|and\s+'?\d+\s*=\s*\d+|sleep\s*\(|benchmark\s*\()/i.test(requestText);
         
-        const hasSqlInjectionPattern = /('.*or.*'|'.*and.*'|--|\/\*|\*\/|;|\bunion\b.*\bselect\b)/i.test(requestText) ||
-                                      /('.*or.*'|'.*and.*'|--|\/\*|\*\/|;|\bunion\b.*\bselect\b)/i.test(decodedRequest);
-        
-        if (hasValidSqlKeywords || hasSqlInjectionPattern) {
+        if (!isLegitimateQuery) {
           threats.push({
             type: "SQL Injection",
-            severity: "high",
+            severity: "critical",
             pattern: pattern.toString(),
             description: "SQL injection attack detected - unauthorized database access attempt",
             location: "Query parameters or request body"
@@ -98,26 +133,11 @@ const Demo = () => {
           type: "Cross-Site Scripting (XSS)",
           severity: "high", 
           pattern: pattern.toString(),
-          description: "Potential XSS attack vector identified",
+          description: "XSS attack vector identified - potential script injection",
           location: "Request parameters or headers"
         });
       }
     });
-
-    // CSRF Token Check
-    const hasCsrfToken = securityPatterns.csrf.some(pattern => 
-      pattern.test(requestText) || pattern.test(decodedRequest)
-    );
-    
-    if (requestText.includes("POST") && !hasCsrfToken) {
-      threats.push({
-        type: "CSRF Vulnerability",
-        severity: "medium",
-        pattern: "Missing CSRF token",
-        description: "POST request without CSRF protection",
-        location: "Request headers or body"
-      });
-    }
 
     // Path Traversal Detection
     securityPatterns.pathTraversal.forEach((pattern, index) => {
@@ -126,7 +146,7 @@ const Demo = () => {
           type: "Path Traversal",
           severity: "high",
           pattern: pattern.toString(),
-          description: "Directory traversal attempt detected",
+          description: "Directory traversal attempt detected - unauthorized file access",
           location: "URL path or parameters"
         });
       }
@@ -139,30 +159,72 @@ const Demo = () => {
           type: "Command Injection",
           severity: "critical",
           pattern: pattern.toString(),
-          description: "Potential command injection attempt",
+          description: "Command injection attempt detected - potential system compromise",
           location: "Request parameters"
         });
       }
     });
 
-    // Encoding Detection (ML-based anomaly detection simulation)
-    const encodingPatterns = [/%[0-9a-f]{2}/gi, /\\x[0-9a-f]{2}/gi, /&#[0-9]+;/gi];
-    const encodedMatches = encodingPatterns.some(pattern => {
-      const matches = requestText.match(pattern);
-      return matches && matches.length > 3; // High encoding density
+    // LDAP Injection Detection
+    securityPatterns.ldapInjection.forEach((pattern, index) => {
+      if (pattern.test(requestText) || pattern.test(decodedRequest)) {
+        threats.push({
+          type: "LDAP Injection",
+          severity: "high",
+          pattern: pattern.toString(),
+          description: "LDAP injection attempt detected - unauthorized directory access",
+          location: "Authentication parameters"
+        });
+      }
     });
 
-    if (encodedMatches) {
+    // CSRF Protection Check (for POST requests)
+    if (requestText.includes("POST") || requestText.includes("PUT") || requestText.includes("DELETE")) {
+      const hasCSRFProtection = /X-CSRF-Token|csrf_token|_token/i.test(requestText);
+      
+      if (!hasCSRFProtection) {
+        threats.push({
+          type: "CSRF Vulnerability",
+          severity: "medium",
+          pattern: "Missing CSRF token",
+          description: "State-changing request without CSRF protection",
+          location: "Request headers or body"
+        });
+      }
+    }
+
+    // Enhanced Encoding Detection (Advanced evasion techniques)
+    const encodingPatterns = [
+      /%[0-9a-f]{2}/gi,     // URL encoding
+      /\\x[0-9a-f]{2}/gi,   // Hex encoding
+      /&#[0-9]+;/gi,        // HTML entities
+      /\\u[0-9a-f]{4}/gi,   // Unicode encoding
+      /\+/g                 // Space encoding in URL
+    ];
+    
+    let totalEncodedChars = 0;
+    encodingPatterns.forEach(pattern => {
+      const matches = requestText.match(pattern);
+      if (matches) totalEncodedChars += matches.length;
+    });
+
+    // High encoding density indicates evasion attempt
+    if (totalEncodedChars > 5 && (totalEncodedChars / requestText.length) > 0.2) {
       threats.push({
         type: "Encoded Payload",
         severity: "medium",
-        pattern: "Multiple encoding patterns",
-        description: "Suspicious encoding detected - potential evasion attempt",
+        pattern: "High encoding density detected",
+        description: "Suspicious encoding patterns - potential evasion attempt",
         location: "Request payload"
       });
     }
 
-    return threats;
+    // Remove duplicates based on type
+    const uniqueThreats = threats.filter((threat, index, self) => 
+      index === self.findIndex(t => t.type === threat.type)
+    );
+
+    return uniqueThreats;
   };
 
   const analyzeRequest = () => {
@@ -187,7 +249,7 @@ const Demo = () => {
   };
 
   const exampleRequests = {
-    // Valid Requests
+    // Valid Requests - Updated with comprehensive examples
     homepage: `GET / HTTP/1.1
 Host: www.example.com`,
     
@@ -195,41 +257,73 @@ Host: www.example.com`,
 Host: www.ecommerce.com
 Referer: https://www.ecommerce.com/products`,
     
-    singleProduct: `GET /product/12345 HTTP/1.1
-Host: www.ecommerce.com
-Referer: https://www.ecommerce.com/products?category=electronics&page=2`,
-    
-    addToCart: `POST /cart/add HTTP/1.1
-Host: www.ecommerce.com
+    productSearch: `GET /search?q=wireless+earbuds&sort=rating_desc HTTP/1.1
+Host: localhost:3000`,
+
+    userOrders: `GET /user/orders?page=1&status=shipped HTTP/1.1
+Host: localhost:3000`,
+
+    addToCartJSON: `POST /cart/add HTTP/1.1
+Host: localhost:3000
 Content-Type: application/json
-Content-Length: 45
 
-{"productId": "12345", "quantity": 1}`,
+{
+  "product_id": 98765,
+  "quantity": 1,
+  "variant": "red"
+}`,
 
-    // Signature-Based Detection (Malicious)
-    sqlInjectionSearch: `GET /search?q=' OR '1'='1'; DROP TABLE users;-- HTTP/1.1
-Host: www.example.com`,
-    
-    xssComment: `GET /comment?text=<script>alert('XSS')</script> HTTP/1.1
-Host: www.example.com`,
-    
-    xssEval: `GET /comment?text=<script>eval(String.fromCharCode(97,108,101,114,116,40,39,88,83,83,39,41))</script> HTTP/1.1
-Host: www.example.com`,
-    
-    sqlUnion: `GET /search?q=1' UNION SELECT username,password FROM users-- HTTP/1.1
-Host: www.example.com`,
+    loginForm: `POST /login HTTP/1.1
+Host: localhost:3000
+Content-Type: application/x-www-form-urlencoded
 
-    // ML-based Anomaly Detection (Encoded)
+username=johndoe&password=SecurePass123`,
+
+    // Malicious Requests - SQL Injection
+    sqlInjectionOR: `GET /products?category=' OR '1'='1 HTTP/1.1
+Host: localhost:3000`,
+    
+    sqlInjectionUnion: `GET /products?id=1 UNION SELECT username,password FROM users-- HTTP/1.1
+Host: localhost:3000`,
+
+    sqlInjectionTime: `GET /search?q=' OR IF(1=1, SLEEP(3), 0)-- HTTP/1.1
+Host: localhost:3000`,
+
+    sqlInjectionLogin: `POST /login HTTP/1.1
+Host: localhost:3000
+Content-Type: application/x-www-form-urlencoded
+
+username=admin'--&password=anything`,
+    
+    // XSS Attacks
+    xssScript: `GET /search?q=<script>alert('XSS')</script> HTTP/1.1
+Host: localhost:3000`,
+    
+    xssImage: `GET /products?category=<img src=x onerror=alert(1)> HTTP/1.1
+Host: localhost:3000`,
+
+    xssComment: `POST /comment HTTP/1.1
+Host: localhost:3000
+Content-Type: application/x-www-form-urlencoded
+
+comment=<script>alert('XSS')</script>`,
+
+    // Path Traversal
+    pathTraversal: `GET /download?file=../../../../etc/passwd HTTP/1.1
+Host: localhost:3000`,
+
+    // Command Injection
+    commandInjection: `GET /ping?host=127.0.0.1;ls HTTP/1.1
+Host: localhost:3000`,
+
+    // Encoded Attacks
     urlEncodedSqli: `GET /search?q=%27%20OR%20%271%27%3D%271 HTTP/1.1
 Host: www.example.com`,
     
     hexEncodedSqli: `GET /search?q=\\x27\\x20OR\\x20\\x31\\x3D\\x31 HTTP/1.1
 Host: www.example.com`,
     
-    obscureHtml: `GET /comment?text=<details%20open%20ontoggle=Function('ale'+'rt(1)')()> HTTP/1.1
-Host: www.example.com`,
-    
-    encodedXss: `GET /comment?text=%3Cscript%3Ealert%28%27XSS%27%29%3C%2Fscript%3E HTTP/1.1
+    advancedXss: `GET /comment?text=<details%20open%20ontoggle=Function('ale'+'rt(1)')()> HTTP/1.1
 Host: www.example.com`
   };
 
@@ -337,7 +431,7 @@ Host: www.example.com`
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => setRequest(exampleRequests.sqlInjectionSearch)}
+                          onClick={() => setRequest(exampleRequests.sqlInjectionOR)}
                           className="text-xs"
                         >
                           SQL Injection
@@ -345,7 +439,7 @@ Host: www.example.com`
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => setRequest(exampleRequests.xssComment)}
+                          onClick={() => setRequest(exampleRequests.xssScript)}
                           className="text-xs"
                         >
                           XSS Attack
@@ -361,7 +455,7 @@ Host: www.example.com`
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => setRequest(exampleRequests.obscureHtml)}
+                          onClick={() => setRequest(exampleRequests.advancedXss)}
                           className="text-xs"
                         >
                           Advanced XSS
