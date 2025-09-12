@@ -171,17 +171,49 @@ const Demo = () => {
   };
 
   const exampleRequests = {
-    valid: `GET /products?category=electronics&page=2 HTTP/1.1
+    // Valid Requests
+    homepage: `GET / HTTP/1.1
+Host: www.example.com`,
+    
+    productListing: `GET /products?category=electronics&page=2 HTTP/1.1
 Host: www.ecommerce.com
 Referer: https://www.ecommerce.com/products`,
     
-    sqlInjection: `GET /search?q=' OR '1'='1'; DROP TABLE users;-- HTTP/1.1
+    singleProduct: `GET /product/12345 HTTP/1.1
+Host: www.ecommerce.com
+Referer: https://www.ecommerce.com/products?category=electronics&page=2`,
+    
+    addToCart: `POST /cart/add HTTP/1.1
+Host: www.ecommerce.com
+Content-Type: application/json
+Content-Length: 45
+
+{"productId": "12345", "quantity": 1}`,
+
+    // Signature-Based Detection (Malicious)
+    sqlInjectionSearch: `GET /search?q=' OR '1'='1'; DROP TABLE users;-- HTTP/1.1
 Host: www.example.com`,
     
-    xss: `GET /comment?text=<script>alert('XSS')</script> HTTP/1.1
+    xssComment: `GET /comment?text=<script>alert('XSS')</script> HTTP/1.1
 Host: www.example.com`,
     
-    encoded: `GET /search?q=%27%20OR%20%271%27%3D%271 HTTP/1.1
+    xssEval: `GET /comment?text=<script>eval(String.fromCharCode(97,108,101,114,116,40,39,88,83,83,39,41))</script> HTTP/1.1
+Host: www.example.com`,
+    
+    sqlUnion: `GET /search?q=1' UNION SELECT username,password FROM users-- HTTP/1.1
+Host: www.example.com`,
+
+    // ML-based Anomaly Detection (Encoded)
+    urlEncodedSqli: `GET /search?q=%27%20OR%20%271%27%3D%271 HTTP/1.1
+Host: www.example.com`,
+    
+    hexEncodedSqli: `GET /search?q=\\x27\\x20OR\\x20\\x31\\x3D\\x31 HTTP/1.1
+Host: www.example.com`,
+    
+    obscureHtml: `GET /comment?text=<details%20open%20ontoggle=Function('ale'+'rt(1)')()> HTTP/1.1
+Host: www.example.com`,
+    
+    encodedXss: `GET /comment?text=%3Cscript%3Ealert%28%27XSS%27%29%3C%2Fscript%3E HTTP/1.1
 Host: www.example.com`
   };
 
@@ -258,35 +290,68 @@ Host: www.example.com`
                 {/* Example Requests */}
                 <div className="space-y-2">
                   <p className="text-sm font-medium">Quick Examples:</p>
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setRequest(exampleRequests.valid)}
-                    >
-                      Valid Request
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setRequest(exampleRequests.sqlInjection)}
-                    >
-                      SQL Injection
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setRequest(exampleRequests.xss)}
-                    >
-                      XSS Attack
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setRequest(exampleRequests.encoded)}
-                    >
-                      Encoded Payload
-                    </Button>
+                  <div className="grid grid-cols-2 gap-2">
+                    {/* Valid Requests */}
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground font-medium">✅ Valid Requests</p>
+                      <div className="flex flex-col gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setRequest(exampleRequests.homepage)}
+                          className="text-xs"
+                        >
+                          Homepage
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setRequest(exampleRequests.productListing)}
+                          className="text-xs"
+                        >
+                          Product Listing
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Malicious Requests */}
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground font-medium">❌ Malicious Requests</p>
+                      <div className="flex flex-col gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setRequest(exampleRequests.sqlInjectionSearch)}
+                          className="text-xs"
+                        >
+                          SQL Injection
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setRequest(exampleRequests.xssComment)}
+                          className="text-xs"
+                        >
+                          XSS Attack
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setRequest(exampleRequests.urlEncodedSqli)}
+                          className="text-xs"
+                        >
+                          Encoded Attack
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setRequest(exampleRequests.obscureHtml)}
+                          className="text-xs"
+                        >
+                          Advanced XSS
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </CardContent>
