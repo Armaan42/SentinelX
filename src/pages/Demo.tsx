@@ -762,7 +762,7 @@ Content-Type: application/json
               <span className="gradient-text">Security Request</span> Analyzer
             </h1>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-              Test HTTP requests for security vulnerabilities including SQL injection, XSS, CSRF, and other threats using both signature-based and ML-powered detection.
+              Test requests for security vulnerabilities including SQL injection, XSS, CSRF, and other threats using both signature-based and ML-powered detection.
             </p>
           </div>
 
@@ -772,15 +772,15 @@ Content-Type: application/json
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <Eye className="h-5 w-5 mr-2 text-primary" />
-                  HTTP Request Input
+                  Request Input
                 </CardTitle>
                 <CardDescription>
-                  Paste your HTTP request below to analyze for security threats
+                  Paste your request below to analyze for security threats
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <Textarea
-                  placeholder="Paste your HTTP request here..."
+                  placeholder="Paste your request here..."
                   value={request}
                   onChange={(e) => setRequest(e.target.value)}
                   className="min-h-[300px] font-mono text-sm"
