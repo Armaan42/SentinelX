@@ -756,244 +756,305 @@ Content-Type: application/json
 
       {/* Main Content */}
       <div className="pt-20 pb-12 px-4">
-        <div className="container mx-auto max-w-6xl">
-          <div className="text-center mb-12">
-            <h1 className="text-4xl md:text-5xl font-bold mb-6">
-              <span className="gradient-text">Security Request</span> Analyzer
-            </h1>
-            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-              Test requests for security vulnerabilities including SQL injection, XSS, CSRF, and other threats using both signature-based and ML-powered detection.
-            </p>
+        <div className="container mx-auto max-w-7xl">
+          {/* Hero Section */}
+          <div className="text-center mb-16 relative">
+            <div className="absolute inset-0 cyber-grid opacity-20"></div>
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-secondary/5"></div>
+            
+            <div className="relative z-10 space-y-6">
+              <div className="inline-flex items-center px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-4">
+                <Shield className="h-4 w-4 mr-2 text-primary" />
+                <span className="text-sm font-medium text-primary">Advanced Security Analysis</span>
+              </div>
+              <h1 className="text-5xl md:text-7xl font-bold mb-6 tracking-tight">
+                <span className="gradient-text">Security Request</span>
+                <br />
+                <span className="text-foreground">Analyzer</span>
+              </h1>
+              <p className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
+                Enterprise-grade security testing platform powered by AI. Detect SQL injection, XSS, CSRF, 
+                and 200+ other attack vectors with military-grade precision.
+              </p>
+            </div>
           </div>
 
-          <div className="grid lg:grid-cols-2 gap-8">
+          <div className="grid lg:grid-cols-5 gap-8">
             {/* Input Section */}
-            <Card className="bg-card/50 border-border/50">
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Eye className="h-5 w-5 mr-2 text-primary" />
-                  Request Input
-                </CardTitle>
-                <CardDescription>
-                  Paste your request below to analyze for security threats
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Textarea
-                  placeholder="Paste your request here..."
-                  value={request}
-                  onChange={(e) => setRequest(e.target.value)}
-                  className="min-h-[300px] font-mono text-sm"
-                />
-                
-                <div className="flex gap-2">
+            <div className="lg:col-span-2">
+              <Card className="backdrop-blur-sm bg-card/30 border-border/50 shadow-2xl hover:shadow-cyber/20 transition-all duration-300">
+                <CardHeader className="pb-6">
+                  <CardTitle className="flex items-center text-xl">
+                    <div className="p-3 rounded-xl bg-gradient-cyber mr-3">
+                      <Eye className="h-5 w-5 text-white" />
+                    </div>
+                    Request Input
+                  </CardTitle>
+                  <CardDescription className="text-base text-muted-foreground">
+                    Paste your HTTP request to analyze for security threats
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="relative group">
+                    <Textarea
+                      placeholder={`GET /products?search=' OR '1'='1 HTTP/1.1\nHost: example.com\nUser-Agent: Mozilla/5.0...`}
+                      value={request}
+                      onChange={(e) => setRequest(e.target.value)}
+                      className="min-h-[320px] font-mono text-sm bg-muted/20 border-border/30 focus:border-primary/50 transition-all duration-300 resize-none group-hover:bg-muted/30"
+                    />
+                    <div className="absolute bottom-3 right-3 text-xs text-muted-foreground bg-background/80 px-2 py-1 rounded">
+                      {request.length} chars
+                    </div>
+                  </div>
                   <Button 
                     onClick={analyzeRequest}
                     disabled={!request?.trim() || isAnalyzing}
-                    className="btn-hero"
+                    size="lg"
+                    className="w-full h-14 bg-gradient-cyber hover:shadow-cyber transition-all duration-300 transform hover:scale-[1.02] text-lg font-semibold"
                   >
                     {isAnalyzing ? (
                       <>
-                        <Zap className="h-4 w-4 mr-2 animate-spin" />
-                        Analyzing...
+                        <div className="animate-spin rounded-full h-6 w-6 border-2 border-current border-t-transparent mr-3" />
+                        Analyzing Security Threats...
                       </>
                     ) : (
                       <>
-                        <Scan className="h-4 w-4 mr-2" />
-                        Analyze Request
+                        <Shield className="h-6 w-6 mr-3" />
+                        Run Security Analysis
                       </>
                     )}
                   </Button>
-                </div>
-
-                {/* Example Requests */}
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">Quick Examples:</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {/* Valid Requests */}
-                    <div className="space-y-1">
-                      <p className="text-xs text-muted-foreground font-medium">✅ Valid Requests</p>
-                      <div className="flex flex-col gap-1">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setRequest(exampleRequests.homepage)}
-                          className="text-xs"
-                        >
-                          Homepage
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setRequest(exampleRequests.productListing)}
-                          className="text-xs"
-                        >
-                          Product Listing
-                        </Button>
+                
+                  {/* Enhanced Example Requests */}
+                  <div className="space-y-4 pt-4 border-t border-border/30">
+                    <p className="text-sm font-semibold text-foreground">Quick Test Examples</p>
+                    <div className="grid grid-cols-1 gap-3">
+                      {/* Valid Requests */}
+                      <div className="space-y-2">
+                        <div className="flex items-center">
+                          <div className="w-2 h-2 bg-secondary rounded-full mr-2"></div>
+                          <p className="text-xs font-medium text-secondary">Valid Requests</p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setRequest(exampleRequests.homepage)}
+                            className="text-xs h-8 hover:bg-secondary/10 hover:border-secondary/30 transition-colors"
+                          >
+                            Homepage
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setRequest(exampleRequests.productListing)}
+                            className="text-xs h-8 hover:bg-secondary/10 hover:border-secondary/30 transition-colors"
+                          >
+                            Product API
+                          </Button>
+                        </div>
                       </div>
-                    </div>
 
-                    {/* Malicious Requests */}
-                    <div className="space-y-1">
-                      <p className="text-xs text-muted-foreground font-medium">❌ Malicious Requests</p>
-                      <div className="flex flex-col gap-1">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setRequest(exampleRequests.sqlInjectionOR)}
-                          className="text-xs"
-                        >
-                          SQL Injection
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setRequest(exampleRequests.xssScript)}
-                          className="text-xs"
-                        >
-                          XSS Attack
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setRequest(exampleRequests.urlEncodedSqli)}
-                          className="text-xs"
-                        >
-                          Encoded Attack
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setRequest(exampleRequests.xssAdvanced)}
-                          className="text-xs"
-                        >
-                          Advanced XSS
-                        </Button>
+                      {/* Malicious Requests */}
+                      <div className="space-y-2">
+                        <div className="flex items-center">
+                          <div className="w-2 h-2 bg-destructive rounded-full mr-2"></div>
+                          <p className="text-xs font-medium text-destructive">Attack Examples</p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setRequest(exampleRequests.sqlInjectionOR)}
+                            className="text-xs h-8 hover:bg-destructive/10 hover:border-destructive/30 transition-colors"
+                          >
+                            SQL Injection
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setRequest(exampleRequests.xssScript)}
+                            className="text-xs h-8 hover:bg-destructive/10 hover:border-destructive/30 transition-colors"
+                          >
+                            XSS Attack
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </div>
 
             {/* Analysis Results */}
-            <Card className="bg-card/50 border-border/50">
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Brain className="h-5 w-5 mr-2 text-secondary" />
-                  Security Analysis
-                </CardTitle>
-                <CardDescription>
-                  Real-time threat detection and risk assessment
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {!analysis ? (
-                  <div className="text-center py-12 text-muted-foreground">
-                    <Shield className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>Submit a request to see security analysis</p>
-                  </div>
-                ) : (
-                  <div className="space-y-6">
-                    {/* Risk Score */}
-                    <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Risk Score</p>
-                        <p className="text-2xl font-bold">
-                          <span className={analysis.riskScore === 0 ? "text-secondary" : 
-                                         analysis.riskScore < 50 ? "text-yellow-500" : "text-destructive"}>
-                            {analysis.riskScore}/100
-                          </span>
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <Badge variant={analysis.isClean ? "secondary" : "destructive"}>
-                          {analysis.isClean ? "Clean" : "Threats Detected"}
-                        </Badge>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {analysis.detectionMethod}
-                        </p>
-                      </div>
+            <div className="lg:col-span-3">
+              <Card className="backdrop-blur-sm bg-card/30 border-border/50 shadow-2xl hover:shadow-tech/20 transition-all duration-300">
+                <CardHeader className="pb-6">
+                  <CardTitle className="flex items-center text-xl">
+                    <div className="p-3 rounded-xl bg-gradient-tech mr-3">
+                      <Brain className="h-5 w-5 text-white" />
                     </div>
-
-                    {/* Threats List */}
-                    {analysis.threats.length === 0 ? (
-                      <Alert>
-                        <CheckCircle className="h-4 w-4" />
-                        <AlertDescription>
-                          No security threats detected. This request appears to be safe.
-                        </AlertDescription>
-                      </Alert>
-                    ) : (
-                      <div className="space-y-3">
-                        <p className="font-medium text-destructive">
-                          {analysis.threats.length} threat(s) detected:
-                        </p>
-                        {analysis.threats.map((threat, index) => (
-                          <Alert key={index} variant="destructive">
-                            <AlertTriangle className="h-4 w-4" />
-                            <AlertDescription>
-                              <div className="space-y-1">
-                                <div className="flex items-center justify-between">
-                                  <span className="font-medium">{threat.type}</span>
-                                  <Badge variant={
-                                    threat.severity === "critical" ? "destructive" :
-                                    threat.severity === "high" ? "destructive" :
-                                    threat.severity === "medium" ? "secondary" : "outline"
-                                  }>
-                                    {threat.severity.toUpperCase()}
-                                  </Badge>
-                                </div>
-                                <p className="text-sm">{threat.description}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  Location: {threat.location}
-                                </p>
-                              </div>
-                            </AlertDescription>
-                          </Alert>
-                        ))}
+                    Security Analysis
+                  </CardTitle>
+                  <CardDescription className="text-base text-muted-foreground">
+                    Real-time threat detection and comprehensive risk assessment
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {!analysis ? (
+                    <div className="text-center py-16 text-muted-foreground">
+                      <div className="relative">
+                        <div className="absolute inset-0 bg-gradient-to-r from-primary/20 via-transparent to-secondary/20 rounded-full blur-xl opacity-50"></div>
+                        <Shield className="relative h-16 w-16 mx-auto mb-6 opacity-40" />
                       </div>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                      <h3 className="text-lg font-semibold mb-2">Ready to Analyze</h3>
+                      <p className="text-sm">Submit a request to see comprehensive security analysis</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-8">
+                      {/* Enhanced Risk Score Display */}
+                      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-muted/30 to-muted/10 p-6 border border-border/30">
+                        <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-secondary/5"></div>
+                        <div className="relative flex items-center justify-between">
+                          <div className="space-y-2">
+                            <p className="text-sm text-muted-foreground font-medium">Overall Risk Score</p>
+                            <div className="flex items-baseline space-x-2">
+                              <span className={`text-4xl font-bold ${
+                                analysis.riskScore === 0 ? "text-secondary" : 
+                                analysis.riskScore < 50 ? "text-yellow-500" : "text-destructive"
+                              }`}>
+                                {analysis.riskScore}
+                              </span>
+                              <span className="text-xl text-muted-foreground font-medium">/100</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">{analysis.detectionMethod}</p>
+                          </div>
+                          <div className="text-right space-y-3">
+                            <Badge 
+                              variant={analysis.isClean ? "secondary" : "destructive"}
+                              className={`px-4 py-2 text-sm font-semibold ${
+                                analysis.isClean ? "bg-secondary/20 text-secondary" : "bg-destructive/20 text-destructive"
+                              }`}
+                            >
+                              {analysis.isClean ? (
+                                <>
+                                  <CheckCircle className="h-4 w-4 mr-2" />
+                                  Secure Request
+                                </>
+                              ) : (
+                                <>
+                                  <AlertTriangle className="h-4 w-4 mr-2" />
+                                  Threats Detected
+                                </>
+                              )}
+                            </Badge>
+                            <div className="text-right">
+                              <p className="text-sm font-medium text-foreground">
+                                {analysis.threats.length} Issue{analysis.threats.length !== 1 ? 's' : ''} Found
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Threats List */}
+                      {analysis.threats.length === 0 ? (
+                        <Alert className="border-secondary/30 bg-secondary/10">
+                          <CheckCircle className="h-5 w-5 text-secondary" />
+                          <AlertDescription className="text-base">
+                            <strong>All Clear!</strong> No security threats detected. This request appears to be legitimate and safe.
+                          </AlertDescription>
+                        </Alert>
+                      ) : (
+                        <div className="space-y-4">
+                          <h3 className="font-semibold text-destructive text-lg flex items-center">
+                            <AlertTriangle className="h-5 w-5 mr-2" />
+                            {analysis.threats.length} Security Threat{analysis.threats.length !== 1 ? 's' : ''} Detected
+                          </h3>
+                          <div className="space-y-3">
+                            {analysis.threats.map((threat, index) => (
+                              <Alert key={index} variant="destructive" className="border-destructive/30 bg-destructive/10">
+                                <AlertTriangle className="h-4 w-4 text-destructive" />
+                                <AlertDescription>
+                                  <div className="space-y-3">
+                                    <div className="flex items-center justify-between">
+                                      <span className="font-semibold text-base text-destructive">{threat.type}</span>
+                                      <div className="flex items-center space-x-2">
+                                        <Badge variant={
+                                          threat.severity === "critical" ? "destructive" :
+                                          threat.severity === "high" ? "destructive" :
+                                          threat.severity === "medium" ? "secondary" : "outline"
+                                        } className="font-semibold">
+                                          {threat.severity.toUpperCase()}
+                                        </Badge>
+                                        <Badge variant="outline" className="text-xs">
+                                          {threat.confidence} confidence
+                                        </Badge>
+                                      </div>
+                                    </div>
+                                    <p className="text-sm text-foreground leading-relaxed">{threat.description}</p>
+                                    <div className="grid grid-cols-2 gap-4 text-xs text-muted-foreground">
+                                      <div>
+                                        <span className="font-medium">Location:</span> {threat.location}
+                                      </div>
+                                      <div>
+                                        <span className="font-medium">Category:</span> {threat.category}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </AlertDescription>
+                              </Alert>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </div>
 
-          {/* Detection Methods */}
-          <div className="mt-12 grid md:grid-cols-3 gap-6">
-            <Card className="bg-gradient-card border-border">
-              <CardHeader className="text-center">
-                <Shield className="h-8 w-8 text-primary mx-auto mb-2" />
-                <CardTitle className="text-lg">Signature Detection</CardTitle>
+          {/* Enhanced Detection Methods */}
+          <div className="mt-16 grid md:grid-cols-3 gap-8">
+            <Card className="backdrop-blur-sm bg-gradient-card border-border/50 hover:shadow-cyber/20 transition-all duration-300 group">
+              <CardHeader className="text-center pb-4">
+                <div className="p-4 rounded-2xl bg-primary/10 mx-auto mb-4 w-fit group-hover:bg-primary/20 transition-colors">
+                  <Shield className="h-8 w-8 text-primary" />
+                </div>
+                <CardTitle className="text-xl">Signature Detection</CardTitle>
               </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground text-center">
-                  Pattern-based detection for known attack vectors like SQL injection, XSS, and command injection
+              <CardContent className="text-center">
+                <p className="text-muted-foreground leading-relaxed">
+                  Pattern-based detection engine for known attack vectors including SQL injection, XSS, and command injection
                 </p>
               </CardContent>
             </Card>
 
-            <Card className="bg-gradient-card border-border">
-              <CardHeader className="text-center">
-                <Brain className="h-8 w-8 text-secondary mx-auto mb-2" />
-                <CardTitle className="text-lg">ML-Based Detection</CardTitle>
+            <Card className="backdrop-blur-sm bg-gradient-card border-border/50 hover:shadow-tech/20 transition-all duration-300 group">
+              <CardHeader className="text-center pb-4">
+                <div className="p-4 rounded-2xl bg-secondary/10 mx-auto mb-4 w-fit group-hover:bg-secondary/20 transition-colors">
+                  <Brain className="h-8 w-8 text-secondary" />
+                </div>
+                <CardTitle className="text-xl">AI-Powered Detection</CardTitle>
               </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground text-center">
-                  Advanced anomaly detection for encoded payloads and evasion techniques
+              <CardContent className="text-center">
+                <p className="text-muted-foreground leading-relaxed">
+                  Advanced machine learning algorithms for anomaly detection and sophisticated evasion techniques
                 </p>
               </CardContent>
             </Card>
 
-            <Card className="bg-gradient-card border-border">
-              <CardHeader className="text-center">
-                <Zap className="h-8 w-8 text-accent mx-auto mb-2" />
-                <CardTitle className="text-lg">Real-Time Analysis</CardTitle>
+            <Card className="backdrop-blur-sm bg-gradient-card border-border/50 hover:shadow-[0_0_30px_hsl(var(--accent)/0.3)] transition-all duration-300 group">
+              <CardHeader className="text-center pb-4">
+                <div className="p-4 rounded-2xl bg-accent/10 mx-auto mb-4 w-fit group-hover:bg-accent/20 transition-colors">
+                  <Zap className="h-8 w-8 text-accent" />
+                </div>
+                <CardTitle className="text-xl">Real-Time Analysis</CardTitle>
               </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground text-center">
-                  Instant threat assessment with detailed risk scoring and remediation guidance
+              <CardContent className="text-center">
+                <p className="text-muted-foreground leading-relaxed">
+                  Instant threat assessment with comprehensive risk scoring and actionable remediation guidance
                 </p>
               </CardContent>
             </Card>
