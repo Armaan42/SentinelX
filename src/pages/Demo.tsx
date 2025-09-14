@@ -25,6 +25,8 @@ const Demo = () => {
   const securityPatterns = {
     // A03: Injection - SQL Injection (Enhanced with context awareness)
     sqlInjection: [
+      // Classic SQL comment injection (admin'-- pattern)
+      /('|\"|`)(\s*)(--|\/\*|#)/i,
       // Classic Boolean-based SQL injection
       /('|\"|`)(\s*)(or|and)(\s*)('|\"|`)(\s*)(=|!=|<>)(\s*)('|\"|`)/i,
       // SQL injection with numeric payloads
