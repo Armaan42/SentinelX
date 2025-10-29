@@ -17,7 +17,11 @@ import {
   Server,
   Eye,
   Network,
-  Terminal
+  Terminal,
+  Code2,
+  Cpu,
+  Layers,
+  ShieldCheck
 } from "lucide-react";
 
 import heroImage from "@/assets/hero-security.jpg";
@@ -53,11 +57,36 @@ const Index = () => {
   ];
 
   const techStack = [
-    { name: "Python", description: "Core scanning logic and analysis engine" },
-    { name: "Bash Scripting", description: "System integration and orchestration" },
-    { name: "Linux", description: "Native platform optimization" },
-    { name: "MERN Stack", description: "MongoDB, Express.js, React, and Node.js for full-stack development" },
-    { name: "SLSA", description: "Supply chain security and build provenance" }
+    { 
+      name: "Python", 
+      description: "Core scanning logic and analysis engine",
+      icon: Code2,
+      color: "text-blue-500"
+    },
+    { 
+      name: "Bash Scripting", 
+      description: "System integration and orchestration",
+      icon: Terminal,
+      color: "text-green-500"
+    },
+    { 
+      name: "Linux", 
+      description: "Native platform optimization",
+      icon: Cpu,
+      color: "text-orange-500"
+    },
+    { 
+      name: "MERN Stack", 
+      description: "MongoDB, Express.js, React, and Node.js for full-stack development",
+      icon: Layers,
+      color: "text-purple-500"
+    },
+    { 
+      name: "SLSA", 
+      description: "Supply chain security and build provenance",
+      icon: ShieldCheck,
+      color: "text-primary"
+    }
   ];
 
   const stats = [
@@ -273,40 +302,54 @@ const Index = () => {
 
       {/* Technology Stack */}
       <section id="technology" className="py-20 px-4">
-        <div className="container mx-auto max-w-4xl text-center">
-          <Badge variant="secondary" className="mb-4">Technology Stack</Badge>
-          <h2 className="text-3xl md:text-4xl font-bold mb-6">
-            Built with <span className="text-primary">Modern Technologies</span>
-          </h2>
-          <p className="text-lg text-muted-foreground mb-12">
-            SentinelX leverages proven technologies for maximum performance, security, and extensibility.
-          </p>
-
-          <div className="grid md:grid-cols-2 gap-6">
-            {techStack.map((tech, index) => (
-              <Card key={index} className="bg-card border-border hover:border-primary/50 transition-all text-left">
-                <CardHeader>
-                  <div className="flex items-center space-x-3">
-                    <Terminal className="h-5 w-5 text-primary" />
-                    <CardTitle className="text-lg">{tech.name}</CardTitle>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <CardDescription className="text-sm">{tech.description}</CardDescription>
-                </CardContent>
-              </Card>
-            ))}
+        <div className="container mx-auto max-w-6xl">
+          <div className="text-center mb-16">
+            <Badge variant="secondary" className="mb-4">Technology Stack</Badge>
+            <h2 className="text-3xl md:text-4xl font-bold mb-6">
+              Built with <span className="text-primary">Modern Technologies</span>
+            </h2>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              SentinelX leverages proven technologies for maximum performance, security, and extensibility.
+            </p>
           </div>
 
-          <div className="mt-12 p-6 bg-muted/20 rounded-lg border border-border">
-            <h3 className="text-lg font-semibold mb-3 flex items-center justify-center">
-              <Lock className="h-5 w-5 text-secondary mr-2" />
-              SLSA Supply Chain Security
-            </h3>
-            <p className="text-muted-foreground text-sm">
-              Every SentinelX build includes SLSA attestations, ensuring verifiable provenance 
-              and supply chain integrity for enterprise-grade security.
-            </p>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+            {techStack.map((tech, index) => {
+              const IconComponent = tech.icon;
+              return (
+                <Card key={index} className="bg-card border-border hover:border-primary/50 transition-all group">
+                  <CardHeader>
+                    <div className="flex items-start justify-between mb-4">
+                      <div className={`p-3 rounded-lg bg-gradient-to-br from-primary/10 to-secondary/10 group-hover:scale-110 transition-transform ${tech.color}`}>
+                        <IconComponent className="h-8 w-8" />
+                      </div>
+                      <Badge variant="outline" className="text-xs">Core</Badge>
+                    </div>
+                    <CardTitle className="text-xl mb-2">{tech.name}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <CardDescription className="text-sm leading-relaxed">{tech.description}</CardDescription>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+
+          <div className="mt-12 p-8 bg-gradient-to-br from-primary/5 to-secondary/5 rounded-xl border border-primary/20">
+            <div className="flex items-start space-x-4">
+              <div className="p-3 rounded-lg bg-primary/10 flex-shrink-0">
+                <ShieldCheck className="h-8 w-8 text-primary" />
+              </div>
+              <div className="text-left">
+                <h3 className="text-xl font-semibold mb-3 flex items-center">
+                  Supply Chain Security with SLSA
+                </h3>
+                <p className="text-muted-foreground">
+                  Every SentinelX build includes SLSA (Supply-chain Levels for Software Artifacts) attestations, 
+                  ensuring verifiable provenance and supply chain integrity for enterprise-grade security deployments.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </section>
