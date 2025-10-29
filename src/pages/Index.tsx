@@ -121,53 +121,75 @@ const Index = () => {
       </nav>
 
       {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-background to-muted/30" />
-        <div 
-          className="absolute inset-0 bg-cover bg-center opacity-10"
-          style={{ backgroundImage: `url(${heroImage})` }}
-        />
+      <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
+        {/* Animated Background */}
+        <div className="absolute inset-0">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-secondary/5" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(var(--primary-rgb),0.1),transparent_50%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(var(--secondary-rgb),0.1),transparent_50%)]" />
+          <div 
+            className="absolute inset-0 bg-cover bg-center opacity-5"
+            style={{ backgroundImage: `url(${heroImage})` }}
+          />
+        </div>
         
-        <div className={`relative z-10 text-center px-4 transition-all duration-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-          <Badge variant="secondary" className="mb-6 text-sm px-4 py-2">
-            Introducing SentinelX Framework
-          </Badge>
-          
-          <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight">
-            <span className="text-primary">Unified Security</span>
-            <br />
-            <span className="text-foreground">for the Modern Enterprise</span>
-          </h1>
-          
-          <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-            Cybersecurity framework combining external vulnerability scanning 
-            and internal system auditing in one powerful platform.
-          </p>
-          
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <Button size="lg" asChild>
-              <a href="https://github.com/Armaan42/SentinelX" target="_blank" rel="noopener noreferrer">
-                <Download className="h-5 w-5 mr-2" />
-                Get Started Free
-              </a>
-            </Button>
-            <Button variant="outline" size="lg" asChild>
-              <Link to="/demo">
-                <Eye className="h-5 w-5 mr-2" />
-                View Demo
-              </Link>
-            </Button>
-          </div>
-          
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-16 max-w-3xl mx-auto">
-            {stats.map((stat, index) => (
-              <div key={index} className="text-center p-4 rounded-lg bg-card/50 border border-border">
-                <div className="text-xl font-semibold text-primary mb-1">{stat.value}</div>
-                <div className="text-xs text-muted-foreground">{stat.label}</div>
-              </div>
-            ))}
+        {/* Content */}
+        <div className="relative z-10 container mx-auto px-4 py-20">
+          <div className={`text-center transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
+            <Badge variant="secondary" className="mb-6 text-sm px-4 py-2 animate-fade-in">
+              Introducing SentinelX Framework
+            </Badge>
+            
+            <h1 className="text-5xl md:text-7xl font-bold mb-8 leading-tight">
+              <span className="block bg-gradient-to-r from-primary via-primary to-secondary bg-clip-text text-transparent animate-fade-in" style={{ animationDelay: '0.2s' }}>
+                Unified Security
+              </span>
+              <span className="block text-foreground mt-2 animate-fade-in" style={{ animationDelay: '0.4s' }}>
+                for the Modern Enterprise
+              </span>
+            </h1>
+            
+            <p className="text-lg md:text-xl text-muted-foreground mb-10 max-w-3xl mx-auto leading-relaxed animate-fade-in" style={{ animationDelay: '0.6s' }}>
+              Cybersecurity framework combining external vulnerability scanning 
+              and internal system auditing in one powerful platform.
+            </p>
+            
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16 animate-fade-in" style={{ animationDelay: '0.8s' }}>
+              <Button size="lg" className="group" asChild>
+                <a href="https://github.com/Armaan42/SentinelX" target="_blank" rel="noopener noreferrer">
+                  <Download className="h-5 w-5 mr-2 group-hover:scale-110 transition-transform" />
+                  Get Started Free
+                </a>
+              </Button>
+              <Button variant="outline" size="lg" className="group" asChild>
+                <Link to="/demo">
+                  <Eye className="h-5 w-5 mr-2 group-hover:scale-110 transition-transform" />
+                  View Demo
+                </Link>
+              </Button>
+            </div>
+            
+            {/* Stats Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto animate-fade-in" style={{ animationDelay: '1s' }}>
+              {stats.map((stat, index) => (
+                <div 
+                  key={index} 
+                  className="group p-6 rounded-xl bg-gradient-to-br from-card to-card/50 border border-border hover:border-primary/50 transition-all hover:scale-105 backdrop-blur-sm"
+                >
+                  <div className="text-2xl md:text-3xl font-bold text-primary mb-2 group-hover:scale-110 transition-transform">
+                    {stat.value}
+                  </div>
+                  <div className="text-xs text-muted-foreground uppercase tracking-wider">
+                    {stat.label}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
+        
+        {/* Decorative Elements */}
+        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background to-transparent pointer-events-none" />
       </section>
 
       {/* Problem Statement */}
