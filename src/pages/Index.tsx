@@ -56,6 +56,7 @@ const Index = () => {
     { name: "Python", description: "Core scanning logic and analysis engine" },
     { name: "Bash Scripting", description: "System integration and orchestration" },
     { name: "Linux", description: "Native platform optimization" },
+    { name: "MERN Stack", description: "MongoDB, Express.js, React, and Node.js for full-stack development" },
     { name: "SLSA", description: "Supply chain security and build provenance" }
   ];
 
