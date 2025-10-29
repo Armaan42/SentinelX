@@ -21,8 +21,6 @@ import {
 } from "lucide-react";
 
 import heroImage from "@/assets/hero-security.jpg";
-import scanningImage from "@/assets/scanning-interface.jpg";
-import auditImage from "@/assets/system-audit.jpg";
 
 const Index = () => {
   const [isVisible, setIsVisible] = useState(false);
@@ -184,89 +182,83 @@ const Index = () => {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-12 items-center mb-20">
-            <div>
-              <h3 className="text-2xl font-bold mb-6 flex items-center">
-                <Network className="h-8 w-8 text-primary mr-3" />
-                External Vulnerability Scanning
-              </h3>
-              <div className="space-y-4">
+          <div className="grid md:grid-cols-2 gap-8 mb-12">
+            <Card className="bg-card border-border hover:border-primary/50 transition-all">
+              <CardHeader>
+                <div className="flex items-center space-x-3 mb-4">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <Network className="h-6 w-6 text-primary" />
+                  </div>
+                  <CardTitle className="text-xl">External Vulnerability Scanning</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
                 <div className="flex items-start space-x-3">
-                  <CheckCircle className="h-5 w-5 text-secondary mt-1 flex-shrink-0" />
+                  <CheckCircle className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
                   <div>
-                    <p className="font-medium">Advanced Web Application Testing</p>
+                    <p className="font-medium text-foreground">Advanced Web Application Testing</p>
                     <p className="text-sm text-muted-foreground">Detect OWASP Top 10 and custom vulnerabilities</p>
                   </div>
                 </div>
                 <div className="flex items-start space-x-3">
-                  <CheckCircle className="h-5 w-5 text-secondary mt-1 flex-shrink-0" />
+                  <CheckCircle className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
                   <div>
-                    <p className="font-medium">Network Service Analysis</p>
+                    <p className="font-medium text-foreground">Network Service Analysis</p>
                     <p className="text-sm text-muted-foreground">Port scanning, service enumeration, and exploitation</p>
                   </div>
                 </div>
                 <div className="flex items-start space-x-3">
-                  <CheckCircle className="h-5 w-5 text-secondary mt-1 flex-shrink-0" />
+                  <CheckCircle className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
                   <div>
-                    <p className="font-medium">Customizable Templates</p>
+                    <p className="font-medium text-foreground">Customizable Templates</p>
                     <p className="text-sm text-muted-foreground">Modular scanning rules and exploit payloads</p>
                   </div>
                 </div>
-              </div>
-            </div>
-            <div className="relative">
-              <img 
-                src={scanningImage} 
-                alt="External vulnerability scanning interface showing network analysis" 
-                className="rounded-lg shadow-lg border border-border"
-              />
-            </div>
-          </div>
+              </CardContent>
+            </Card>
 
-          <div className="grid md:grid-cols-2 gap-12 items-center">
-            <div className="relative md:order-1">
-              <img 
-                src={auditImage} 
-                alt="Internal security audit dashboard with compliance metrics" 
-                className="rounded-lg shadow-lg border border-border"
-              />
-            </div>
-            <div className="md:order-2">
-              <h3 className="text-2xl font-bold mb-6 flex items-center">
-                <Server className="h-8 w-8 text-secondary mr-3" />
-                Internal Security Auditing
-              </h3>
-              <div className="space-y-4">
+            <Card className="bg-card border-border hover:border-primary/50 transition-all">
+              <CardHeader>
+                <div className="flex items-center space-x-3 mb-4">
+                  <div className="p-2 rounded-lg bg-secondary/10">
+                    <Server className="h-6 w-6 text-secondary" />
+                  </div>
+                  <CardTitle className="text-xl">Internal Security Auditing</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
                 <div className="flex items-start space-x-3">
-                  <CheckCircle className="h-5 w-5 text-secondary mt-1 flex-shrink-0" />
+                  <CheckCircle className="h-5 w-5 text-secondary mt-0.5 flex-shrink-0" />
                   <div>
-                    <p className="font-medium">OS Hardening Assessment</p>
+                    <p className="font-medium text-foreground">OS Hardening Assessment</p>
                     <p className="text-sm text-muted-foreground">Linux system configuration and security posture</p>
                   </div>
                 </div>
                 <div className="flex items-start space-x-3">
-                  <CheckCircle className="h-5 w-5 text-secondary mt-1 flex-shrink-0" />
+                  <CheckCircle className="h-5 w-5 text-secondary mt-0.5 flex-shrink-0" />
                   <div>
-                    <p className="font-medium">Compliance Benchmarking</p>
+                    <p className="font-medium text-foreground">Compliance Benchmarking</p>
                     <p className="text-sm text-muted-foreground">CIS, NIST, and custom compliance frameworks</p>
                   </div>
                 </div>
                 <div className="flex items-start space-x-3">
-                  <CheckCircle className="h-5 w-5 text-secondary mt-1 flex-shrink-0" />
+                  <CheckCircle className="h-5 w-5 text-secondary mt-0.5 flex-shrink-0" />
                   <div>
-                    <p className="font-medium">Permission & Configuration Analysis</p>
+                    <p className="font-medium text-foreground">Permission & Configuration Analysis</p>
                     <p className="text-sm text-muted-foreground">File systems, services, and access controls</p>
                   </div>
                 </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mt-20">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {features.map((feature, index) => (
               <Card key={index} className="bg-card border-border hover:border-primary/50 transition-all">
-                <CardHeader className="text-center">
-                  <feature.icon className="h-10 w-10 text-primary mx-auto mb-3" />
+                <CardHeader className="text-center pb-3">
+                  <div className="p-3 rounded-lg bg-primary/10 w-fit mx-auto mb-3">
+                    <feature.icon className="h-6 w-6 text-primary" />
+                  </div>
                   <CardTitle className="text-base">{feature.title}</CardTitle>
                 </CardHeader>
                 <CardContent>
