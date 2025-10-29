@@ -320,13 +320,7 @@ const Index = () => {
             Join security teams worldwide using SentinelX for comprehensive vulnerability management.
           </p>
           
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <Button size="lg" asChild>
-              <a href="https://github.com/Armaan42/SentinelX" target="_blank" rel="noopener noreferrer">
-                <Download className="h-5 w-5 mr-2" />
-                Download SentinelX
-              </a>
-            </Button>
+          <div className="flex justify-center">
             <Button variant="outline" size="lg" asChild>
               <a href="https://github.com/Armaan42/SentinelX" target="_blank" rel="noopener noreferrer">
                 <Github className="h-5 w-5 mr-2" />
