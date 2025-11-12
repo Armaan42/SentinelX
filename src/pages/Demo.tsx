@@ -24,6 +24,11 @@ import { Link } from "react-router-dom";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { toast } from "sonner";
+import SeverityDistributionChart from "@/components/charts/SeverityDistributionChart";
+import OWASPRadarChart from "@/components/charts/OWASPRadarChart";
+import Top10VulnerabilitiesChart from "@/components/charts/Top10VulnerabilitiesChart";
+import ConfidenceGauge from "@/components/charts/ConfidenceGauge";
+import VulnerabilityHeatmap from "@/components/charts/VulnerabilityHeatmap";
 
 // ==================== INTERFACES ====================
 
@@ -73,6 +78,30 @@ interface ScanResult {
     low: number;
     immune_count: number;
     security_score: number;
+  };
+  chart_data: {
+    severity_distribution: {
+      labels: string[];
+      values: number[];
+    };
+    owasp_radar: {
+      labels: string[];
+      values: number[];
+    };
+    top10: {
+      labels: string[];
+      scores: number[];
+    };
+    confidence_overall: number;
+    heatmap: {
+      categories: string[];
+      checks: Array<{
+        id: string;
+        label: string;
+        category: string;
+        status: 'immune' | 'vulnerable' | 'unknown';
+      }>;
+    };
   };
   markdown_report: string;
   notes: string;
@@ -621,6 +650,31 @@ const Demo = () => {
 
     setScanProgress(100);
 
+    // Generate chart data
+    const owaspCategories = ['A01', 'A02', 'A03', 'A04', 'A05', 'A06', 'A07', 'A08', 'A09', 'A10'];
+    const owaspRadarData = owaspCategories.map(cat => {
+      const catFindings = findings.filter(f => f.owasp_category.startsWith(cat));
+      const vulnerable = catFindings.filter(f => f.status === 'vulnerable').length;
+      return catFindings.length > 0 ? Math.round(((catFindings.length - vulnerable) / catFindings.length) * 100) : 100;
+    });
+
+    // Top 10 weighted vulnerabilities
+    const weightedVulns = vulnerableFindings
+      .map(f => ({
+        title: f.title,
+        weight: (f.severity === 'critical' ? 4 : f.severity === 'high' ? 3 : f.severity === 'medium' ? 2 : 1) * (f.confidence / 100)
+      }))
+      .sort((a, b) => b.weight - a.weight)
+      .slice(0, 10);
+
+    // Heatmap data
+    const heatmapChecks = findings.slice(0, 50).map((f, idx) => ({
+      id: f.id,
+      label: f.title.substring(0, 30),
+      category: f.owasp_category.split('-')[0].trim(),
+      status: f.status
+    }));
+
     const result: ScanResult = {
       scan_id,
       input_url: url,
@@ -648,6 +702,42 @@ const Demo = () => {
         low: lowCount,
         immune_count: findings.length - vulnerableFindings.length,
         security_score
+      },
+      chart_data: {
+        severity_distribution: {
+          labels: ['Critical', 'High', 'Medium', 'Low', 'Info'],
+          values: [
+            criticalCount,
+            highCount,
+            mediumCount,
+            lowCount,
+            findings.filter(f => f.severity === 'info').length
+          ]
+        },
+        owasp_radar: {
+          labels: [
+            'Broken Access Control',
+            'Cryptographic Failures',
+            'Injection',
+            'Insecure Design',
+            'Security Misconfiguration',
+            'Vulnerable Components',
+            'Authentication Failures',
+            'Software Integrity',
+            'Logging Failures',
+            'SSRF'
+          ],
+          values: owaspRadarData
+        },
+        top10: {
+          labels: weightedVulns.length > 0 ? weightedVulns.map(v => v.title) : ['No vulnerabilities found'],
+          scores: weightedVulns.length > 0 ? weightedVulns.map(v => Math.round(v.weight * 25)) : [0]
+        },
+        confidence_overall,
+        heatmap: {
+          categories: ['A01', 'A02', 'A03', 'A04', 'A05', 'A06', 'A07', 'A08', 'A09', 'A10'],
+          checks: heatmapChecks
+        }
       },
       markdown_report: '',
       notes: blocked_by
@@ -684,6 +774,17 @@ const Demo = () => {
     doc.text(`Security Score: ${result.summary.security_score.toFixed(1)}/100`, 20, yPos);
     yPos += 6;
     doc.text(`Confidence: ${result.confidence_overall}%`, 20, yPos);
+    yPos += 6;
+    
+    // Add risk level
+    const getRiskLevel = (score: number) => {
+      if (score >= 90) return 'Secure';
+      if (score >= 70) return 'Low Risk';
+      if (score >= 50) return 'Medium Risk';
+      if (score >= 30) return 'High Risk';
+      return 'Critical Risk';
+    };
+    doc.text(`Risk Level: ${getRiskLevel(result.summary.security_score)}`, 20, yPos);
     yPos += 10;
 
     // Summary section
@@ -715,6 +816,33 @@ const Demo = () => {
     });
 
     yPos = (doc as any).lastAutoTable.finalY + 15;
+
+    // Chart Data Summary
+    if (yPos > pageHeight - 60) {
+      doc.addPage();
+      yPos = 20;
+    }
+
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Visual Analytics Summary', 20, yPos);
+    yPos += 8;
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    
+    const chartSummary = [
+      `Severity Distribution: ${result.chart_data.severity_distribution.labels.map((l, i) => 
+        `${l}: ${result.chart_data.severity_distribution.values[i]}`).join(', ')}`,
+      `Top Vulnerability: ${result.chart_data.top10.labels[0] || 'None'}`,
+      `OWASP Coverage: Average immunity ${Math.round(result.chart_data.owasp_radar.values.reduce((a, b) => a + b, 0) / result.chart_data.owasp_radar.values.length)}%`
+    ];
+    
+    chartSummary.forEach(line => {
+      const lines = doc.splitTextToSize(line, pageWidth - 40);
+      doc.text(lines, 20, yPos);
+      yPos += lines.length * 6;
+    });
+    yPos += 10;
 
     // Overall Verdict
     if (yPos > pageHeight - 40) {
@@ -921,6 +1049,83 @@ const Demo = () => {
         {/* Scan Results */}
         {scanResult && (
           <div className="space-y-6">
+            {/* Charts Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Severity Distribution */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <AlertTriangle className="w-5 h-5" />
+                    Severity Distribution
+                  </CardTitle>
+                  <CardDescription>Breakdown of vulnerabilities by severity level</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <SeverityDistributionChart data={scanResult.chart_data.severity_distribution} />
+                </CardContent>
+              </Card>
+
+              {/* Confidence Gauge */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Shield className="w-5 h-5" />
+                    Scan Confidence & Security Score
+                  </CardTitle>
+                  <CardDescription>Overall confidence in scan results</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <ConfidenceGauge confidence={scanResult.chart_data.confidence_overall} />
+                    </div>
+                    <div className="flex flex-col justify-center items-center">
+                      <div className="text-5xl font-bold text-primary">
+                        {scanResult.summary.security_score.toFixed(0)}
+                      </div>
+                      <div className="text-sm text-muted-foreground mt-2">Security Score</div>
+                      <div className="mt-4">
+                        {getRiskBadge(scanResult.summary.security_score)}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* OWASP Radar Chart */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Server className="w-5 h-5" />
+                  OWASP Top 10 Coverage Analysis
+                </CardTitle>
+                <CardDescription>
+                  Immunity levels across OWASP security categories (100% = fully immune)
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <OWASPRadarChart data={scanResult.chart_data.owasp_radar} />
+              </CardContent>
+            </Card>
+
+            {/* Top 10 Vulnerabilities */}
+            {scanResult.summary.vulnerable_count > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <AlertTriangle className="w-5 h-5" />
+                    Top Weighted Vulnerabilities
+                  </CardTitle>
+                  <CardDescription>
+                    Most impactful findings ranked by severity × confidence
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Top10VulnerabilitiesChart data={scanResult.chart_data.top10} />
+                </CardContent>
+              </Card>
+            )}
             {/* Overall Verdict */}
             <Alert className={scanResult.summary.critical > 0 ? "border-destructive bg-destructive/10" : "border-primary bg-primary/10"}>
               <Shield className="h-5 w-5" />
@@ -1014,6 +1219,22 @@ const Demo = () => {
                     </div>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* Vulnerability Heatmap */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="w-5 h-5" />
+                  OWASP Vulnerability Heatmap
+                </CardTitle>
+                <CardDescription>
+                  Visual matrix of security checks grouped by OWASP category
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <VulnerabilityHeatmap data={scanResult.chart_data.heatmap} />
               </CardContent>
             </Card>
 
