@@ -580,7 +580,7 @@ const Demo = () => {
     const heatmapChecks = findings.slice(0, 50).map((f) => ({
       id: f.id,
       label: f.title.substring(0, 30),
-      category: f.owasp_category ? f.owasp_category.split('-')[0].trim() : 'Unknown',
+      category: f.owasp_category ? f.owasp_category.match(/A\d+/)?.[0] || 'Unknown' : 'Unknown',
       status: f.status
     }));
 
