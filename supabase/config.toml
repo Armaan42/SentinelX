@@ -1,0 +1,4 @@
+project_id = "wagmpmwgyiltwylospsy"
+
+[functions.vulnerability-scan]
+verify_jwt = false

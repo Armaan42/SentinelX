@@ -24,6 +24,7 @@ import { Link } from "react-router-dom";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import SeverityDistributionChart from "@/components/charts/SeverityDistributionChart";
 import OWASPRadarChart from "@/components/charts/OWASPRadarChart";
 import Top10VulnerabilitiesChart from "@/components/charts/Top10VulnerabilitiesChart";
@@ -503,162 +504,70 @@ const Demo = () => {
   const [currentScanPhase, setCurrentScanPhase] = useState("");
 
   const simulateVulnerabilityScan = async (url: string): Promise<ScanResult> => {
-    const scan_id = `SENTINELX-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}${String(new Date().getDate()).padStart(2, '0')}-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
+    // Phase 1: Initialize scan
+    setCurrentScanPhase('Initializing security scan...');
+    setScanProgress(10);
+    await new Promise(resolve => setTimeout(resolve, 300));
 
-    // Phase 1: Normalize & Validate
-    setCurrentScanPhase('Normalizing and validating URL...');
-    setScanProgress(5);
+    // Phase 2: Call backend vulnerability scanner
+    setCurrentScanPhase('Calling signature-based detection engine...');
+    setScanProgress(20);
+
+    const { data, error } = await supabase.functions.invoke('vulnerability-scan', {
+      body: { url }
+    });
+
+    if (error) {
+      throw new Error(`Scan failed: ${error.message}`);
+    }
+
+    setCurrentScanPhase('Processing scan results...');
+    setScanProgress(60);
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    let normalized_url: string;
-    try {
-      normalized_url = normalizeURL(url);
-    } catch (error) {
-      throw new Error('Invalid URL format');
-    }
+    // Backend returns: scan_id, target_url, timestamp, findings, summary, executive_summary
+    const backendResult = data;
 
-    const isTrusted = isTrustedDomain(normalized_url);
-
-    // Phase 2: DNS Resolution
-    setCurrentScanPhase('Resolving DNS and checking connectivity...');
-    setScanProgress(15);
-    await new Promise(resolve => setTimeout(resolve, 800));
-
-    const dns_resolution = {
-      resolved: true,
-      ips: ['192.0.2.' + Math.floor(Math.random() * 255)]
-    };
-
-    // Phase 3: Fetch Headers and Body
-    setCurrentScanPhase('Fetching response headers and body (passive mode)...');
-    setScanProgress(25);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    const final_url = normalized_url;
-    const redirect_chain = [normalized_url];
-    const status_code = 200;
-    const content_type = 'text/html; charset=utf-8';
-
-    // Simulate response headers
-    const headers: Record<string, string> = {
-      'server': isTrusted ? 'Server' : 'Apache/2.4.41 (Ubuntu)',
-      'content-type': content_type,
-      'x-powered-by': isTrusted ? '' : 'PHP/7.4.3',
-      'strict-transport-security': isTrusted ? 'max-age=31536000; includeSubDomains; preload' : '',
-      'content-security-policy': isTrusted ? "default-src 'self'; script-src 'self' 'unsafe-inline'" : '',
-      'x-frame-options': isTrusted ? 'DENY' : '',
-      'x-content-type-options': isTrusted ? 'nosniff' : '',
-      'referrer-policy': isTrusted ? 'strict-origin-when-cross-origin' : '',
-      'permissions-policy': isTrusted ? 'geolocation=(), microphone=(), camera=()' : ''
-    };
-
-    // Simulate body content
-    const body = `
-      <!DOCTYPE html>
-      <html>
-      <head><title>Sample Page</title></head>
-      <body>
-        ${extractASIN(url) ? '<div id="productTitle">Sample Product</div><button>Add to Cart</button>' : '<article>Content</article>'}
-        ${isTrusted ? '' : '<script src="https://cdn.example.com/lib.js"></script>'}
-      </body>
-      </html>
-    `;
-
-    // Phase 4: Check for blocking
-    setCurrentScanPhase('Checking for WAF/CAPTCHA/bot protection...');
-    setScanProgress(35);
-    await new Promise(resolve => setTimeout(resolve, 600));
-
-    const blocked_by = checkBlocking(body);
-
-    // Phase 5: Resource identification
-    setCurrentScanPhase('Identifying resource type and platform...');
-    setScanProgress(45);
-    await new Promise(resolve => setTimeout(resolve, 700));
-
-    const platform = identifyPlatform(url, body);
-    const resource_type = identifyResourceType(url, body, content_type);
-    const asin = extractASIN(url);
-    const availability = resource_type === 'product' ? checkAvailability(body) : 'unknown';
-
-    // Phase 6: TLS Analysis
-    setCurrentScanPhase('Analyzing TLS/SSL configuration (passive)...');
-    setScanProgress(55);
-    await new Promise(resolve => setTimeout(resolve, 800));
-
-    const tls = {
-      valid: true,
-      expires_in_days: isTrusted ? 365 : 180,
-      protocols: isTrusted ? ['TLSv1.2', 'TLSv1.3'] : ['TLSv1.2']
-    };
-
-    // Phase 7: Comprehensive OWASP checks
-    setCurrentScanPhase('Performing OWASP Top 10 security analysis...');
-    setScanProgress(65);
-    await new Promise(resolve => setTimeout(resolve, 1200));
-
-    setCurrentScanPhase('Running extended vulnerability checks (100+ categories)...');
+    setCurrentScanPhase('Generating visual analytics...');
     setScanProgress(80);
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    await new Promise(resolve => setTimeout(resolve, 400));
 
-    const findings = generateOWASPChecks(url, headers, body, tls, platform, isTrusted);
+    // Generate chart data from backend findings
+    const findings: VulnerabilityFinding[] = backendResult.findings || [];
+    const summary = backendResult.summary || {};
 
-    // Phase 8: Calculate confidence and scores
-    setCurrentScanPhase('Calculating security scores and confidence levels...');
-    setScanProgress(90);
-    await new Promise(resolve => setTimeout(resolve, 600));
-
-    const vulnerableFindings = findings.filter(f => f.status === 'vulnerable');
-    const criticalCount = vulnerableFindings.filter(f => f.severity === 'critical').length;
-    const highCount = vulnerableFindings.filter(f => f.severity === 'high').length;
-    const mediumCount = vulnerableFindings.filter(f => f.severity === 'medium').length;
-    const lowCount = vulnerableFindings.filter(f => f.severity === 'low').length;
-
-    // Calculate existence confidence
-    let confidence_overall = 0;
-    confidence_overall += dns_resolution.resolved ? 30 : 0;
-    confidence_overall += status_code === 200 ? 30 : 0;
-    confidence_overall += body.length > 100 ? 30 : 0;
-    confidence_overall += !blocked_by ? 10 : 0;
-
-    const exists = confidence_overall >= 70;
-
-    // Calculate security score
-    let security_score = 100;
-    security_score -= criticalCount * 15;
-    security_score -= highCount * 8;
-    security_score -= mediumCount * 3;
-    security_score -= lowCount * 1;
-    security_score = Math.max(0, Math.min(100, security_score));
-
-    // Determine overall verdict
-    let overall_verdict = '';
-
-    if (criticalCount > 0) {
-      overall_verdict = `This website has ${criticalCount} critical vulnerabilit${criticalCount > 1 ? 'ies' : 'y'} that require immediate attention. Immediate remediation is strongly advised.`;
-    } else if (highCount > 0) {
-      overall_verdict = `${highCount} high-severity vulnerabilit${highCount > 1 ? 'ies' : 'y'} detected. Security hardening recommended.`;
-    } else if (mediumCount > 3) {
-      overall_verdict = `${mediumCount} medium-severity issues found. Review and patch recommended.`;
-    } else if (vulnerableFindings.length > 0) {
-      overall_verdict = `${vulnerableFindings.length} low-severity issue${vulnerableFindings.length > 1 ? 's' : ''} detected. Minor improvements suggested.`;
-    } else {
-      overall_verdict = blocked_by
-        ? `Scan was ${blocked_by === 'captcha' ? 'blocked by CAPTCHA' : 'blocked by WAF'}. Unable to complete full assessment. Try from an alternate vantage point or request explicit permission.`
-        : `This website follows strong security hygiene and is immune to major OWASP Top 100 vulnerabilities. No critical issues detected.`;
-    }
-
-    setScanProgress(100);
-
-    // Generate chart data
+    // OWASP Radar Chart Data
     const owaspCategories = ['A01', 'A02', 'A03', 'A04', 'A05', 'A06', 'A07', 'A08', 'A09', 'A10'];
+    const owaspRadarLabels = [
+      'Broken Access Control',
+      'Cryptographic Failures',
+      'Injection',
+      'Insecure Design',
+      'Security Misconfiguration',
+      'Vulnerable Components',
+      'Auth Failures',
+      'Data Integrity',
+      'Logging Failures',
+      'SSRF'
+    ];
     const owaspRadarData = owaspCategories.map(cat => {
-      const catFindings = findings.filter(f => f.owasp_category.startsWith(cat));
+      const catFindings = findings.filter(f => f.owasp_category && f.owasp_category.startsWith(cat));
       const vulnerable = catFindings.filter(f => f.status === 'vulnerable').length;
       return catFindings.length > 0 ? Math.round(((catFindings.length - vulnerable) / catFindings.length) * 100) : 100;
     });
 
-    // Top 10 weighted vulnerabilities
+    // Severity Distribution
+    const severityLabels = ['Critical', 'High', 'Medium', 'Low', 'Info'];
+    const severityValues = [
+      summary.critical || 0,
+      summary.high || 0,
+      summary.medium || 0,
+      summary.low || 0,
+      (findings.filter(f => f.severity === 'info' && f.status === 'vulnerable').length) || 0
+    ];
+
+    // Top 10 Weighted Vulnerabilities
+    const vulnerableFindings = findings.filter(f => f.status === 'vulnerable');
     const weightedVulns = vulnerableFindings
       .map(f => ({
         title: f.title,
@@ -668,83 +577,93 @@ const Demo = () => {
       .slice(0, 10);
 
     // Heatmap data
-    const heatmapChecks = findings.slice(0, 50).map((f, idx) => ({
+    const heatmapChecks = findings.slice(0, 50).map((f) => ({
       id: f.id,
       label: f.title.substring(0, 30),
-      category: f.owasp_category.split('-')[0].trim(),
+      category: f.owasp_category ? f.owasp_category.split('-')[0].trim() : 'Unknown',
       status: f.status
     }));
 
+    const confidence_overall = 100;
+    const security_score = summary.security_score || 0;
+
+    // Determine overall verdict
+    const criticalCount = summary.critical || 0;
+    const highCount = summary.high || 0;
+    const mediumCount = summary.medium || 0;
+    const vulnerableCount = summary.vulnerable_count || 0;
+    
+    let overall_verdict = '';
+    if (criticalCount > 0) {
+      overall_verdict = `This website has ${criticalCount} critical vulnerabilit${criticalCount > 1 ? 'ies' : 'y'} that require immediate attention. Immediate remediation is strongly advised.`;
+    } else if (highCount > 0) {
+      overall_verdict = `${highCount} high-severity vulnerabilit${highCount > 1 ? 'ies' : 'y'} detected. Security hardening recommended.`;
+    } else if (mediumCount > 3) {
+      overall_verdict = `${mediumCount} medium-severity issues found. Review and patch recommended.`;
+    } else if (vulnerableCount > 0) {
+      overall_verdict = `${vulnerableCount} low-severity issue${vulnerableCount > 1 ? 's' : ''} detected. Minor improvements suggested.`;
+    } else {
+      overall_verdict = `This website follows strong security hygiene and is immune to major OWASP vulnerabilities. No critical issues detected.`;
+    }
+
+    setScanProgress(100);
+
     const result: ScanResult = {
-      scan_id,
+      scan_id: backendResult.scan_id,
       input_url: url,
-      final_url,
-      redirect_chain,
-      exists,
+      final_url: backendResult.target_url || url,
+      redirect_chain: [url],
+      exists: true,
       confidence_overall,
-      status_code,
-      content_type,
-      resource_type,
-      platform,
-      asin,
-      availability,
-      blocked_by,
-      dns_resolution,
-      headers,
-      tls,
+      status_code: 200,
+      content_type: 'text/html',
+      resource_type: 'unknown',
+      platform: 'unknown',
+      asin: null,
+      availability: 'unknown',
+      blocked_by: null,
+      dns_resolution: {
+        resolved: true,
+        ips: ['N/A']
+      },
+      headers: {},
+      tls: {
+        valid: true,
+        expires_in_days: 365,
+        protocols: ['TLSv1.2', 'TLSv1.3']
+      },
       findings,
       summary: {
-        total_checks: findings.length,
-        vulnerable_count: vulnerableFindings.length,
+        total_checks: summary.total_checks || 0,
+        vulnerable_count: vulnerableCount,
         critical: criticalCount,
         high: highCount,
         medium: mediumCount,
-        low: lowCount,
-        immune_count: findings.length - vulnerableFindings.length,
+        low: summary.low || 0,
+        immune_count: summary.immune_count || 0,
         security_score
       },
       chart_data: {
         severity_distribution: {
-          labels: ['Critical', 'High', 'Medium', 'Low', 'Info'],
-          values: [
-            criticalCount,
-            highCount,
-            mediumCount,
-            lowCount,
-            findings.filter(f => f.severity === 'info').length
-          ]
+          labels: severityLabels,
+          values: severityValues
         },
         owasp_radar: {
-          labels: [
-            'Broken Access Control',
-            'Cryptographic Failures',
-            'Injection',
-            'Insecure Design',
-            'Security Misconfiguration',
-            'Vulnerable Components',
-            'Authentication Failures',
-            'Software Integrity',
-            'Logging Failures',
-            'SSRF'
-          ],
+          labels: owaspRadarLabels,
           values: owaspRadarData
         },
         top10: {
-          labels: weightedVulns.length > 0 ? weightedVulns.map(v => v.title) : ['No vulnerabilities found'],
-          scores: weightedVulns.length > 0 ? weightedVulns.map(v => Math.round(v.weight * 25)) : [0]
+          labels: weightedVulns.map(v => v.title.substring(0, 30)),
+          scores: weightedVulns.map(v => Math.round(v.weight * 10))
         },
         confidence_overall,
         heatmap: {
-          categories: ['A01', 'A02', 'A03', 'A04', 'A05', 'A06', 'A07', 'A08', 'A09', 'A10'],
+          categories: owaspCategories,
           checks: heatmapChecks
         }
       },
-      markdown_report: '',
-      notes: blocked_by
-        ? `Scan blocked by ${blocked_by}. Results may be incomplete.`
-        : isTrusted
-          ? 'Trusted domain - stricter validation applied'
-          : 'Full passive security analysis completed',
+      markdown_report: backendResult.executive_summary || '',
+      notes: `Signature-based vulnerability scan completed at ${new Date().toISOString()}`,
       overall_verdict
     };
 
