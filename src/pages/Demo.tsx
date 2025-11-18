@@ -671,250 +671,463 @@ const Demo = () => {
   };
 
   const generatePDF = async (result: ScanResult) => {
-    toast.info("Generating PDF with charts...");
+    toast.info("Generating professional PDF report with charts...");
     
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 20;
+    const contentWidth = pageWidth - 2 * margin;
     let yPos = 20;
 
-    // Title
+    // Helper function to add new page
+    const addNewPage = () => {
+      doc.addPage();
+      yPos = margin;
+    };
+
+    // Helper function to check if we need a new page
+    const checkPageBreak = (requiredSpace: number) => {
+      if (yPos + requiredSpace > pageHeight - margin) {
+        addNewPage();
+        return true;
+      }
+      return false;
+    };
+
+    // Helper to add footer
+    const addFooter = () => {
+      const currentPage = doc.getCurrentPageInfo().pageNumber;
+      doc.setFontSize(8);
+      doc.setTextColor(128, 128, 128);
+      doc.text(`Security Scanner Pro - Page ${currentPage}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
+      doc.setTextColor(0, 0, 0);
+    };
+
+    // ===== PAGE 1: COVER PAGE =====
+    doc.setFillColor(15, 23, 42); // Dark background
+    doc.rect(0, 0, pageWidth, pageHeight, 'F');
+    
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(36);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Vulnerability Scan Report', pageWidth / 2, 80, { align: 'center' });
+    
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Prepared By', pageWidth / 2, 120, { align: 'center' });
+    
     doc.setFontSize(20);
     doc.setFont('helvetica', 'bold');
-    doc.text('OWASP Vulnerability Compliance Report', pageWidth / 2, yPos, { align: 'center' });
-
-    yPos += 15;
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Scan ID: ${result.scan_id}`, 20, yPos);
-    yPos += 6;
-    doc.text(`Target: ${result.input_url}`, 20, yPos);
-    yPos += 6;
-    doc.text(`Scan Date: ${new Date().toLocaleDateString()}`, 20, yPos);
-    yPos += 6;
-    doc.text(`Security Score: ${result.summary.security_score.toFixed(1)}/100`, 20, yPos);
-    yPos += 6;
-    doc.text(`Confidence: ${result.confidence_overall}%`, 20, yPos);
-    yPos += 6;
+    doc.text('Security Scanner Pro', pageWidth / 2, 140, { align: 'center' });
     
-    // Add risk level
-    const getRiskLevel = (score: number) => {
-      if (score >= 90) return 'Secure';
-      if (score >= 70) return 'Low Risk';
-      if (score >= 50) return 'Medium Risk';
-      if (score >= 30) return 'High Risk';
-      return 'Critical Risk';
-    };
-    doc.text(`Risk Level: ${getRiskLevel(result.summary.security_score)}`, 20, yPos);
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+    const currentDate = new Date().toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+    doc.text(currentDate, pageWidth / 2, 165, { align: 'center' });
+    
+    doc.setFontSize(10);
+    const displayUrl = result.final_url.length > 60 ? result.final_url.substring(0, 60) + '...' : result.final_url;
+    doc.text(displayUrl, pageWidth / 2, 185, { align: 'center' });
+
+    // ===== PAGE 2: TABLE OF CONTENTS =====
+    addNewPage();
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(28);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Overview', margin, yPos);
+    yPos += 20;
+
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    const tocItems = [
+      { title: '1 Executive Summary', page: 3 },
+      { title: '2 Severity Distribution', page: 4 },
+      { title: '3 OWASP Top 10 Coverage', page: 5 },
+      { title: '4 Top Vulnerabilities', page: 6 },
+      { title: '5 Vulnerability Heatmap', page: 7 },
+      { title: '6 Detailed Findings', page: 8 },
+      { title: '7 Recommendations', page: '9+' },
+    ];
+
+    tocItems.forEach(item => {
+      doc.text(item.title, margin + 5, yPos);
+      doc.text(String(item.page), pageWidth - margin - 10, yPos, { align: 'right' });
+      yPos += 10;
+    });
+
+    addFooter();
+
+    // ===== PAGE 3: EXECUTIVE SUMMARY =====
+    addNewPage();
+    doc.setFontSize(24);
+    doc.setFont('helvetica', 'bold');
+    doc.text('1. Executive Summary', margin, yPos);
+    yPos += 15;
+
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    const introLines = doc.splitTextToSize(
+      'Vulnerability scans were conducted on the target system. This report contains discovered potential vulnerabilities classified by severity. Higher severity indicates greater risk of data breach, loss of integrity, or system availability.',
+      contentWidth
+    );
+    introLines.forEach((line: string) => {
+      doc.text(line, margin, yPos);
+      yPos += 6;
+    });
     yPos += 10;
 
-    // Summary section
+    // 1.1 Total Vulnerabilities
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text('Executive Summary', 20, yPos);
+    doc.text('1.1 Total Vulnerabilities', margin, yPos);
+    yPos += 10;
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Below are the total number of vulnerabilities found by severity.', margin, yPos);
     yPos += 8;
 
-    const summaryData = [
-      ['Total Security Checks', result.summary.total_checks.toString()],
-      ['Vulnerabilities Found', result.summary.vulnerable_count.toString()],
-      ['Critical', result.summary.critical.toString()],
-      ['High', result.summary.high.toString()],
-      ['Medium', result.summary.medium.toString()],
-      ['Low', result.summary.low.toString()],
-      ['Immune', result.summary.immune_count.toString()],
-      ['Platform', result.platform],
-      ['Resource Type', result.resource_type],
-      ['TLS Valid', result.tls.valid ? 'Yes' : 'No']
-    ];
+    const severityCounts = {
+      critical: result.findings.filter(f => f.severity === 'critical').length,
+      high: result.findings.filter(f => f.severity === 'high').length,
+      medium: result.findings.filter(f => f.severity === 'medium').length,
+      low: result.findings.filter(f => f.severity === 'low').length,
+      info: result.findings.filter(f => f.severity === 'info').length,
+    };
 
     autoTable(doc, {
       startY: yPos,
-      head: [['Metric', 'Value']],
-      body: summaryData,
+      head: [['Critical', 'High', 'Medium', 'Low', 'Info']],
+      body: [[
+        severityCounts.critical,
+        severityCounts.high,
+        severityCounts.medium,
+        severityCounts.low,
+        severityCounts.info
+      ]],
       theme: 'grid',
-      headStyles: { fillColor: [59, 130, 246] },
-      margin: { left: 20, right: 20 }
+      headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: 'bold' },
+      margin: { left: margin, right: margin },
     });
 
     yPos = (doc as any).lastAutoTable.finalY + 15;
 
-    // ==================== CHART IMAGES ====================
-    // Capture charts as images and embed them in PDF
-    try {
-      const html2canvas = (await import('html2canvas')).default;
-      
-      // Add new page for charts
-      doc.addPage();
-      yPos = 20;
-      
-      doc.setFontSize(14);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Visual Analytics', pageWidth / 2, yPos, { align: 'center' });
-      yPos += 15;
-
-      // Capture Severity Distribution Chart
-      const severityChart = document.querySelector('[data-chart="severity"]') as HTMLElement;
-      if (severityChart) {
-        const canvas = await html2canvas(severityChart, { scale: 2, backgroundColor: '#ffffff' });
-        const imgData = canvas.toDataURL('image/png');
-        const imgWidth = 80;
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-        doc.addImage(imgData, 'PNG', 20, yPos, imgWidth, imgHeight);
-        
-        // Capture Confidence Gauge next to it
-        const confidenceGauge = document.querySelector('[data-chart="confidence"]') as HTMLElement;
-        if (confidenceGauge) {
-          const canvas2 = await html2canvas(confidenceGauge, { scale: 2, backgroundColor: '#ffffff' });
-          const imgData2 = canvas2.toDataURL('image/png');
-          doc.addImage(imgData2, 'PNG', 110, yPos, imgWidth, imgHeight);
-        }
-        
-        yPos += imgHeight + 10;
-      }
-
-      // Add new page for OWASP Radar
-      if (yPos > pageHeight - 100) {
-        doc.addPage();
-        yPos = 20;
-      }
-      
-      const owaspRadar = document.querySelector('[data-chart="owasp-radar"]') as HTMLElement;
-      if (owaspRadar) {
-        const canvas = await html2canvas(owaspRadar, { scale: 2, backgroundColor: '#ffffff' });
-        const imgData = canvas.toDataURL('image/png');
-        const imgWidth = 170;
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-        doc.addImage(imgData, 'PNG', (pageWidth - imgWidth) / 2, yPos, imgWidth, imgHeight);
-        yPos += imgHeight + 10;
-      }
-
-      // Add new page for Top 10 Vulnerabilities
-      doc.addPage();
-      yPos = 20;
-      
-      const top10Chart = document.querySelector('[data-chart="top10"]') as HTMLElement;
-      if (top10Chart) {
-        const canvas = await html2canvas(top10Chart, { scale: 2, backgroundColor: '#ffffff' });
-        const imgData = canvas.toDataURL('image/png');
-        const imgWidth = 170;
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-        doc.addImage(imgData, 'PNG', (pageWidth - imgWidth) / 2, yPos, imgWidth, imgHeight);
-        yPos += imgHeight + 10;
-      }
-
-      // Add heatmap if there's space
-      if (yPos < pageHeight - 100) {
-        const heatmap = document.querySelector('[data-chart="heatmap"]') as HTMLElement;
-        if (heatmap) {
-          const canvas = await html2canvas(heatmap, { scale: 1.5, backgroundColor: '#ffffff' });
-          const imgData = canvas.toDataURL('image/png');
-          const imgWidth = 170;
-          const imgHeight = (canvas.height * imgWidth) / canvas.width;
-          if (yPos + imgHeight > pageHeight - 10) {
-            doc.addPage();
-            yPos = 20;
-          }
-          doc.addImage(imgData, 'PNG', (pageWidth - imgWidth) / 2, yPos, imgWidth, imgHeight);
-        }
-      }
-    } catch (error) {
-      console.error('Error capturing charts:', error);
-      toast.error('Charts could not be captured, but PDF will still be generated');
-    }
-
-    // Chart Data Summary
-    doc.addPage();
-    yPos = 20;
-
+    // 1.2 Report Coverage
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text('Visual Analytics Summary', 20, yPos);
-    yPos += 8;
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    
-    const chartSummary = [
-      `Severity Distribution: ${result.chart_data.severity_distribution.labels.map((l, i) => 
-        `${l}: ${result.chart_data.severity_distribution.values[i]}`).join(', ')}`,
-      `Top Vulnerability: ${result.chart_data.top10.labels[0] || 'None'}`,
-      `OWASP Coverage: Average immunity ${Math.round(result.chart_data.owasp_radar.values.reduce((a, b) => a + b, 0) / result.chart_data.owasp_radar.values.length)}%`
-    ];
-    
-    chartSummary.forEach(line => {
-      const lines = doc.splitTextToSize(line, pageWidth - 40);
-      doc.text(lines, 20, yPos);
-      yPos += lines.length * 6;
-    });
+    doc.text('1.2 Report Coverage', margin, yPos);
     yPos += 10;
 
-    // Overall Verdict
-    if (yPos > pageHeight - 40) {
-      doc.addPage();
-      yPos = 20;
-    }
-
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Overall Verdict', 20, yPos);
-    yPos += 8;
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    const verdictLines = doc.splitTextToSize(result.overall_verdict, pageWidth - 40);
-    doc.text(verdictLines, 20, yPos);
-    yPos += verdictLines.length * 6 + 10;
-
-    // Detailed Findings
-    if (yPos > pageHeight - 40) {
-      doc.addPage();
-      yPos = 20;
-    }
-
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Complete OWASP Compliance Check (100+ Categories)', 20, yPos);
+    doc.text('This report includes findings for 1 target scanned.', margin, yPos);
     yPos += 8;
 
-    const findingsData = result.findings.map(f => [
-      f.id,
-      f.title.substring(0, 35),
-      f.status.toUpperCase(),
-      f.severity.toUpperCase(),
-      f.confidence + '%'
-    ]);
+    // Helper to get risk level
+    const getRiskLevel = (score: number): string => {
+      if (score >= 90) return 'SECURE';
+      if (score >= 70) return 'LOW RISK';
+      if (score >= 50) return 'MEDIUM RISK';
+      if (score >= 30) return 'HIGH RISK';
+      return 'CRITICAL RISK';
+    };
 
     autoTable(doc, {
       startY: yPos,
-      head: [['ID', 'Vulnerability', 'Status', 'Severity', 'Confidence']],
-      body: findingsData,
-      theme: 'grid',
-      headStyles: { fillColor: [59, 130, 246], fontSize: 8 },
-      bodyStyles: { fontSize: 7 },
-      columnStyles: {
-        0: { cellWidth: 25 },
-        1: { cellWidth: 70 },
-        2: { cellWidth: 25 },
-        3: { cellWidth: 25 },
-        4: { cellWidth: 25 }
-      },
-      margin: { left: 20, right: 20 },
-      didDrawPage: (data) => {
-        doc.setFontSize(8);
-        doc.setTextColor(128);
-        doc.text(
-          `SentinelX Security Report - Page ${doc.getCurrentPageInfo().pageNumber}`,
-          pageWidth / 2,
-          pageHeight - 10,
-          { align: 'center' }
-        );
-      }
+      head: [['Metric', 'Value']],
+      body: [
+        ['Target URL', displayUrl],
+        ['Scan Date', currentDate],
+        ['Total Findings', result.findings.length.toString()],
+        ['Vulnerabilities', result.summary.vulnerable_count.toString()],
+        ['Security Score', `${result.summary.security_score.toFixed(1)}/100`],
+        ['Overall Confidence', `${result.confidence_overall}%`],
+        ['Risk Level', getRiskLevel(result.summary.security_score)],
+        ['Platform Detected', result.platform],
+      ],
+      theme: 'striped',
+      headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: 'bold' },
+      margin: { left: margin, right: margin },
     });
 
+    addFooter();
+
+    // ===== PAGE 4: SEVERITY DISTRIBUTION CHART =====
+    addNewPage();
+    doc.setFontSize(24);
+    doc.setFont('helvetica', 'bold');
+    doc.text('2. Severity Distribution', margin, yPos);
+    yPos += 15;
+
+    try {
+      const html2canvas = (await import('html2canvas')).default;
+      
+      const severityChart = document.querySelector('[data-chart="severity-distribution"]') as HTMLElement;
+      if (severityChart) {
+        const canvas = await html2canvas(severityChart, { scale: 2, backgroundColor: '#ffffff' });
+        const imgData = canvas.toDataURL('image/png');
+        const imgWidth = contentWidth * 0.8;
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        doc.addImage(imgData, 'PNG', margin + (contentWidth - imgWidth) / 2, yPos, imgWidth, imgHeight);
+        yPos += imgHeight + 10;
+      }
+
+      // Add confidence gauge below
+      const confidenceGauge = document.querySelector('[data-chart="confidence-gauge"]') as HTMLElement;
+      if (confidenceGauge && yPos + 80 < pageHeight - margin) {
+        const canvas = await html2canvas(confidenceGauge, { scale: 2, backgroundColor: '#ffffff' });
+        const imgData = canvas.toDataURL('image/png');
+        const imgWidth = contentWidth * 0.5;
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        doc.addImage(imgData, 'PNG', margin + (contentWidth - imgWidth) / 2, yPos, imgWidth, imgHeight);
+      }
+    } catch (error) {
+      console.error('Error capturing severity chart:', error);
+      doc.setFontSize(10);
+      doc.text('Chart could not be rendered', margin, yPos);
+    }
+
+    addFooter();
+
+    // ===== PAGE 5: OWASP TOP 10 COVERAGE =====
+    addNewPage();
+    doc.setFontSize(24);
+    doc.setFont('helvetica', 'bold');
+    doc.text('3. OWASP Top 10 Coverage', margin, yPos);
+    yPos += 15;
+
+    try {
+      const html2canvas = (await import('html2canvas')).default;
+      const owaspChart = document.querySelector('[data-chart="owasp-radar"]') as HTMLElement;
+      if (owaspChart) {
+        const canvas = await html2canvas(owaspChart, { scale: 2, backgroundColor: '#ffffff' });
+        const imgData = canvas.toDataURL('image/png');
+        const imgWidth = contentWidth * 0.9;
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        doc.addImage(imgData, 'PNG', margin + (contentWidth - imgWidth) / 2, yPos, imgWidth, imgHeight);
+      }
+    } catch (error) {
+      console.error('Error capturing OWASP chart:', error);
+      doc.setFontSize(10);
+      doc.text('Chart could not be rendered', margin, yPos);
+    }
+
+    addFooter();
+
+    // ===== PAGE 6: TOP VULNERABILITIES =====
+    addNewPage();
+    doc.setFontSize(24);
+    doc.setFont('helvetica', 'bold');
+    doc.text('4. Top Vulnerabilities', margin, yPos);
+    yPos += 15;
+
+    try {
+      const html2canvas = (await import('html2canvas')).default;
+      const top10Chart = document.querySelector('[data-chart="top-10-vulnerabilities"]') as HTMLElement;
+      if (top10Chart) {
+        const canvas = await html2canvas(top10Chart, { scale: 2, backgroundColor: '#ffffff' });
+        const imgData = canvas.toDataURL('image/png');
+        const imgWidth = contentWidth;
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        doc.addImage(imgData, 'PNG', margin, yPos, imgWidth, imgHeight);
+      }
+    } catch (error) {
+      console.error('Error capturing top 10 chart:', error);
+      doc.setFontSize(10);
+      doc.text('Chart could not be rendered', margin, yPos);
+    }
+
+    addFooter();
+
+    // ===== PAGE 7: VULNERABILITY HEATMAP =====
+    addNewPage();
+    doc.setFontSize(24);
+    doc.setFont('helvetica', 'bold');
+    doc.text('5. Vulnerability Heatmap', margin, yPos);
+    yPos += 15;
+
+    try {
+      const html2canvas = (await import('html2canvas')).default;
+      const heatmapChart = document.querySelector('[data-chart="vulnerability-heatmap"]') as HTMLElement;
+      if (heatmapChart) {
+        const canvas = await html2canvas(heatmapChart, { scale: 2, backgroundColor: '#ffffff' });
+        const imgData = canvas.toDataURL('image/png');
+        const imgWidth = contentWidth;
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        doc.addImage(imgData, 'PNG', margin, yPos, imgWidth, imgHeight);
+      }
+    } catch (error) {
+      console.error('Error capturing heatmap:', error);
+      doc.setFontSize(10);
+      doc.text('Chart could not be rendered', margin, yPos);
+    }
+
+    addFooter();
+
+    // ===== PAGE 8+: DETAILED FINDINGS =====
+    addNewPage();
+    doc.setFontSize(24);
+    doc.setFont('helvetica', 'bold');
+    doc.text('6. Detailed Findings', margin, yPos);
+    yPos += 15;
+
+    // Group findings by severity
+    const groupedFindings = {
+      critical: result.findings.filter(f => f.severity === 'critical'),
+      high: result.findings.filter(f => f.severity === 'high'),
+      medium: result.findings.filter(f => f.severity === 'medium'),
+      low: result.findings.filter(f => f.severity === 'low'),
+      info: result.findings.filter(f => f.severity === 'info'),
+    };
+
+    const severityColors: Record<string, [number, number, number]> = {
+      critical: [220, 38, 38],
+      high: [239, 68, 68],
+      medium: [251, 146, 60],
+      low: [59, 130, 246],
+      info: [156, 163, 175],
+    };
+
+    Object.entries(groupedFindings).forEach(([severity, findings]) => {
+      if (findings.length === 0) return;
+
+      checkPageBreak(30);
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      const color = severityColors[severity];
+      doc.setTextColor(color[0], color[1], color[2]);
+      doc.text(`${severity.toUpperCase()} Severity (${findings.length} findings)`, margin, yPos);
+      doc.setTextColor(0, 0, 0);
+      yPos += 12;
+
+      findings.forEach((finding, idx) => {
+        checkPageBreak(70);
+        
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        const titleText = `${idx + 1}. ${finding.title}`;
+        doc.text(titleText, margin, yPos);
+        yPos += 7;
+
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(100, 100, 100);
+        doc.text(`OWASP: ${finding.owasp_category} | Confidence: ${finding.confidence}% | Status: ${finding.status.toUpperCase()}`, margin + 3, yPos);
+        doc.setTextColor(0, 0, 0);
+        yPos += 7;
+
+        // Recommendation
+        doc.setFont('helvetica', 'bold');
+        doc.text('Recommendation:', margin + 3, yPos);
+        yPos += 5;
+        
+        doc.setFont('helvetica', 'normal');
+        const recLines = doc.splitTextToSize(finding.recommendation, contentWidth - 10);
+        recLines.forEach((line: string) => {
+          checkPageBreak(5);
+          doc.text(line, margin + 8, yPos);
+          yPos += 5;
+        });
+        yPos += 3;
+
+        // Evidence (max 3 items)
+        if (finding.evidence && finding.evidence.length > 0) {
+          checkPageBreak(15);
+          doc.setFont('helvetica', 'bold');
+          doc.text('Evidence:', margin + 3, yPos);
+          yPos += 5;
+          
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(8);
+          finding.evidence.slice(0, 3).forEach((ev: string) => {
+            const evLines = doc.splitTextToSize(`• ${ev}`, contentWidth - 15);
+            evLines.forEach((line: string) => {
+              checkPageBreak(4);
+              doc.text(line, margin + 8, yPos);
+              yPos += 4;
+            });
+          });
+          doc.setFontSize(9);
+          yPos += 3;
+        }
+
+        yPos += 8;
+        
+        // Add separator line
+        if (idx < findings.length - 1) {
+          doc.setDrawColor(200, 200, 200);
+          doc.line(margin, yPos, pageWidth - margin, yPos);
+          yPos += 8;
+        }
+      });
+
+      yPos += 10;
+      addFooter();
+    });
+
+    // ===== FINAL PAGE: RECOMMENDATIONS SUMMARY =====
+    addNewPage();
+    doc.setFontSize(24);
+    doc.setFont('helvetica', 'bold');
+    doc.text('7. Recommendations Summary', margin, yPos);
+    yPos += 15;
+
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    const recommendations = [
+      'Address all CRITICAL and HIGH severity vulnerabilities immediately',
+      'Implement Web Application Firewall (WAF) for additional protection',
+      'Enable security headers: CSP, HSTS, X-Frame-Options, X-Content-Type-Options',
+      'Regular security audits and penetration testing recommended',
+      'Keep all software, frameworks, and dependencies up to date',
+      'Implement proper input validation and output encoding throughout application',
+      'Use HTTPS everywhere with strong TLS 1.3 configuration',
+      'Establish regular backup and disaster recovery procedures',
+      'Provide security awareness training for development and operations teams',
+      'Monitor and log security events continuously with SIEM integration',
+      'Implement rate limiting and DDoS protection',
+      'Regular vulnerability scanning on monthly basis'
+    ];
+
+    recommendations.forEach((rec, idx) => {
+      checkPageBreak(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${idx + 1}.`, margin, yPos);
+      doc.setFont('helvetica', 'normal');
+      const recLines = doc.splitTextToSize(rec, contentWidth - 15);
+      let firstLine = true;
+      recLines.forEach((line: string) => {
+        checkPageBreak(6);
+        doc.text(line, margin + (firstLine ? 10 : 10), yPos);
+        yPos += 6;
+        firstLine = false;
+      });
+      yPos += 3;
+    });
+
+    yPos += 10;
+    checkPageBreak(30);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'italic');
+    doc.setTextColor(100, 100, 100);
+    doc.text('This report was generated by Security Scanner Pro.', margin, yPos);
+    yPos += 5;
+    doc.text('For questions or support, please contact your security team.', margin, yPos);
+
+    addFooter();
+
+    // Save PDF
     const domain = new URL(result.final_url).hostname.replace(/\./g, '_');
     const date = new Date().toISOString().split('T')[0];
-    const fileName = `${domain}_OWASP_Full_Report_${date}.pdf`;
+    const fileName = `${domain}_security_report_${date}.pdf`;
 
     doc.save(fileName);
-    toast.success("PDF report downloaded successfully!");
+    toast.success("Professional PDF report downloaded successfully!");
   };
 
   const handleStartScan = async () => {
