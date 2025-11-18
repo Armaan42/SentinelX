@@ -670,7 +670,9 @@ const Demo = () => {
     return result;
   };
 
-  const generatePDF = (result: ScanResult) => {
+  const generatePDF = async (result: ScanResult) => {
+    toast.info("Generating PDF with charts...");
+    
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
@@ -736,11 +738,93 @@ const Demo = () => {
 
     yPos = (doc as any).lastAutoTable.finalY + 15;
 
-    // Chart Data Summary
-    if (yPos > pageHeight - 60) {
+    // ==================== CHART IMAGES ====================
+    // Capture charts as images and embed them in PDF
+    try {
+      const html2canvas = (await import('html2canvas')).default;
+      
+      // Add new page for charts
       doc.addPage();
       yPos = 20;
+      
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Visual Analytics', pageWidth / 2, yPos, { align: 'center' });
+      yPos += 15;
+
+      // Capture Severity Distribution Chart
+      const severityChart = document.querySelector('[data-chart="severity"]') as HTMLElement;
+      if (severityChart) {
+        const canvas = await html2canvas(severityChart, { scale: 2, backgroundColor: '#ffffff' });
+        const imgData = canvas.toDataURL('image/png');
+        const imgWidth = 80;
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        doc.addImage(imgData, 'PNG', 20, yPos, imgWidth, imgHeight);
+        
+        // Capture Confidence Gauge next to it
+        const confidenceGauge = document.querySelector('[data-chart="confidence"]') as HTMLElement;
+        if (confidenceGauge) {
+          const canvas2 = await html2canvas(confidenceGauge, { scale: 2, backgroundColor: '#ffffff' });
+          const imgData2 = canvas2.toDataURL('image/png');
+          doc.addImage(imgData2, 'PNG', 110, yPos, imgWidth, imgHeight);
+        }
+        
+        yPos += imgHeight + 10;
+      }
+
+      // Add new page for OWASP Radar
+      if (yPos > pageHeight - 100) {
+        doc.addPage();
+        yPos = 20;
+      }
+      
+      const owaspRadar = document.querySelector('[data-chart="owasp-radar"]') as HTMLElement;
+      if (owaspRadar) {
+        const canvas = await html2canvas(owaspRadar, { scale: 2, backgroundColor: '#ffffff' });
+        const imgData = canvas.toDataURL('image/png');
+        const imgWidth = 170;
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        doc.addImage(imgData, 'PNG', (pageWidth - imgWidth) / 2, yPos, imgWidth, imgHeight);
+        yPos += imgHeight + 10;
+      }
+
+      // Add new page for Top 10 Vulnerabilities
+      doc.addPage();
+      yPos = 20;
+      
+      const top10Chart = document.querySelector('[data-chart="top10"]') as HTMLElement;
+      if (top10Chart) {
+        const canvas = await html2canvas(top10Chart, { scale: 2, backgroundColor: '#ffffff' });
+        const imgData = canvas.toDataURL('image/png');
+        const imgWidth = 170;
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        doc.addImage(imgData, 'PNG', (pageWidth - imgWidth) / 2, yPos, imgWidth, imgHeight);
+        yPos += imgHeight + 10;
+      }
+
+      // Add heatmap if there's space
+      if (yPos < pageHeight - 100) {
+        const heatmap = document.querySelector('[data-chart="heatmap"]') as HTMLElement;
+        if (heatmap) {
+          const canvas = await html2canvas(heatmap, { scale: 1.5, backgroundColor: '#ffffff' });
+          const imgData = canvas.toDataURL('image/png');
+          const imgWidth = 170;
+          const imgHeight = (canvas.height * imgWidth) / canvas.width;
+          if (yPos + imgHeight > pageHeight - 10) {
+            doc.addPage();
+            yPos = 20;
+          }
+          doc.addImage(imgData, 'PNG', (pageWidth - imgWidth) / 2, yPos, imgWidth, imgHeight);
+        }
+      }
+    } catch (error) {
+      console.error('Error capturing charts:', error);
+      toast.error('Charts could not be captured, but PDF will still be generated');
     }
+
+    // Chart Data Summary
+    doc.addPage();
+    yPos = 20;
 
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
@@ -979,7 +1063,7 @@ const Demo = () => {
                   </CardTitle>
                   <CardDescription>Breakdown of vulnerabilities by severity level</CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent data-chart="severity">
                   <SeverityDistributionChart data={scanResult.chart_data.severity_distribution} />
                 </CardContent>
               </Card>
@@ -993,7 +1077,7 @@ const Demo = () => {
                   </CardTitle>
                   <CardDescription>Overall confidence in scan results</CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent data-chart="confidence">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <ConfidenceGauge confidence={scanResult.chart_data.confidence_overall} />
@@ -1023,7 +1107,7 @@ const Demo = () => {
                   Immunity levels across OWASP security categories (100% = fully immune)
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent data-chart="owasp-radar">
                 <OWASPRadarChart data={scanResult.chart_data.owasp_radar} />
               </CardContent>
             </Card>
@@ -1040,7 +1124,7 @@ const Demo = () => {
                     Most impactful findings ranked by severity × confidence
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent data-chart="top10">
                   <Top10VulnerabilitiesChart data={scanResult.chart_data.top10} />
                 </CardContent>
               </Card>
@@ -1152,7 +1236,7 @@ const Demo = () => {
                   Visual matrix of security checks grouped by OWASP category
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent data-chart="heatmap">
                 <VulnerabilityHeatmap data={scanResult.chart_data.heatmap} />
               </CardContent>
             </Card>
