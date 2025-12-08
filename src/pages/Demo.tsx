@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Shield, 
   AlertTriangle, 
@@ -18,11 +19,13 @@ import {
   Server,
   FileText,
   Info,
-  ChevronDown
+  ChevronDown,
+  History
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import html2canvas from "html2canvas";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import SeverityDistributionChart from "@/components/charts/SeverityDistributionChart";
@@ -30,6 +33,7 @@ import OWASPRadarChart from "@/components/charts/OWASPRadarChart";
 import Top10VulnerabilitiesChart from "@/components/charts/Top10VulnerabilitiesChart";
 import ConfidenceGauge from "@/components/charts/ConfidenceGauge";
 import VulnerabilityHeatmap from "@/components/charts/VulnerabilityHeatmap";
+import ScanHistory from "@/components/ScanHistory";
 
 // ==================== INTERFACES ====================
 
@@ -502,7 +506,14 @@ const Demo = () => {
   const [isScanning, setIsScanning] = useState(false);
   const [scanProgress, setScanProgress] = useState(0);
   const [currentScanPhase, setCurrentScanPhase] = useState("");
-
+  const [historyKey, setHistoryKey] = useState(0);
+  
+  // Refs for chart capturing
+  const severityChartRef = useRef<HTMLDivElement>(null);
+  const confidenceChartRef = useRef<HTMLDivElement>(null);
+  const owaspChartRef = useRef<HTMLDivElement>(null);
+  const top10ChartRef = useRef<HTMLDivElement>(null);
+  const heatmapChartRef = useRef<HTMLDivElement>(null);
   const simulateVulnerabilityScan = async (url: string): Promise<ScanResult> => {
     // Phase 1: Initialize scan
     setCurrentScanPhase('Initializing security scan...');
@@ -668,6 +679,64 @@ const Demo = () => {
     };
 
     return result;
+  };
+
+  // Save scan to history
+  const saveScanToHistory = async (result: ScanResult) => {
+    const getRiskLevel = (score: number): string => {
+      if (score >= 90) return 'SECURE';
+      if (score >= 70) return 'LOW RISK';
+      if (score >= 50) return 'MEDIUM RISK';
+      if (score >= 30) return 'HIGH RISK';
+      return 'CRITICAL RISK';
+    };
+
+    try {
+      const { error } = await supabase
+        .from('scan_history')
+        .insert({
+          scan_id: result.scan_id,
+          target_url: result.input_url,
+          final_url: result.final_url,
+          platform: result.platform,
+          security_score: result.summary.security_score,
+          confidence_overall: result.confidence_overall,
+          total_findings: result.summary.total_checks,
+          critical_count: result.summary.critical,
+          high_count: result.summary.high,
+          medium_count: result.summary.medium,
+          low_count: result.summary.low,
+          info_count: result.findings.filter(f => f.severity === 'info').length,
+          vulnerable_count: result.summary.vulnerable_count,
+          immune_count: result.summary.immune_count,
+          risk_level: getRiskLevel(result.summary.security_score),
+          scan_result: result as any
+        });
+
+      if (error) throw error;
+      setHistoryKey(prev => prev + 1); // Trigger history refresh
+    } catch (error) {
+      console.error('Failed to save scan to history:', error);
+    }
+  };
+
+  // Helper to capture chart as image
+  const captureChart = async (ref: React.RefObject<HTMLDivElement>): Promise<string | null> => {
+    if (!ref.current) return null;
+    try {
+      // Wait a bit for charts to render
+      await new Promise(resolve => setTimeout(resolve, 100));
+      const canvas = await html2canvas(ref.current, {
+        scale: 2,
+        backgroundColor: '#ffffff',
+        logging: false,
+        useCORS: true
+      });
+      return canvas.toDataURL('image/png');
+    } catch (error) {
+      console.error('Error capturing chart:', error);
+      return null;
+    }
   };
 
   const generatePDF = async (result: ScanResult) => {
@@ -864,32 +933,32 @@ const Demo = () => {
     doc.text('2. Severity Distribution', margin, yPos);
     yPos += 15;
 
-    try {
-      const html2canvas = (await import('html2canvas')).default;
-      
-      const severityChart = document.querySelector('[data-chart="severity-distribution"]') as HTMLElement;
-      if (severityChart) {
-        const canvas = await html2canvas(severityChart, { scale: 2, backgroundColor: '#ffffff' });
-        const imgData = canvas.toDataURL('image/png');
-        const imgWidth = contentWidth * 0.8;
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-        doc.addImage(imgData, 'PNG', margin + (contentWidth - imgWidth) / 2, yPos, imgWidth, imgHeight);
-        yPos += imgHeight + 10;
-      }
-
-      // Add confidence gauge below
-      const confidenceGauge = document.querySelector('[data-chart="confidence-gauge"]') as HTMLElement;
-      if (confidenceGauge && yPos + 80 < pageHeight - margin) {
-        const canvas = await html2canvas(confidenceGauge, { scale: 2, backgroundColor: '#ffffff' });
-        const imgData = canvas.toDataURL('image/png');
-        const imgWidth = contentWidth * 0.5;
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-        doc.addImage(imgData, 'PNG', margin + (contentWidth - imgWidth) / 2, yPos, imgWidth, imgHeight);
-      }
-    } catch (error) {
-      console.error('Error capturing severity chart:', error);
+    // Capture severity chart using ref
+    const severityImg = await captureChart(severityChartRef);
+    if (severityImg) {
+      const imgWidth = contentWidth * 0.8;
+      // Create temp image to get dimensions
+      const tempImg = new Image();
+      tempImg.src = severityImg;
+      await new Promise(resolve => { tempImg.onload = resolve; });
+      const imgHeight = (tempImg.height * imgWidth) / tempImg.width;
+      doc.addImage(severityImg, 'PNG', margin + (contentWidth - imgWidth) / 2, yPos, imgWidth, Math.min(imgHeight, 120));
+      yPos += Math.min(imgHeight, 120) + 10;
+    } else {
       doc.setFontSize(10);
-      doc.text('Chart could not be rendered', margin, yPos);
+      doc.text('Severity distribution chart - see online report', margin, yPos);
+      yPos += 10;
+    }
+
+    // Capture confidence gauge
+    const confidenceImg = await captureChart(confidenceChartRef);
+    if (confidenceImg && yPos + 80 < pageHeight - margin) {
+      const imgWidth = contentWidth * 0.6;
+      const tempImg = new Image();
+      tempImg.src = confidenceImg;
+      await new Promise(resolve => { tempImg.onload = resolve; });
+      const imgHeight = (tempImg.height * imgWidth) / tempImg.width;
+      doc.addImage(confidenceImg, 'PNG', margin + (contentWidth - imgWidth) / 2, yPos, imgWidth, Math.min(imgHeight, 100));
     }
 
     addFooter();
@@ -901,20 +970,17 @@ const Demo = () => {
     doc.text('3. OWASP Top 10 Coverage', margin, yPos);
     yPos += 15;
 
-    try {
-      const html2canvas = (await import('html2canvas')).default;
-      const owaspChart = document.querySelector('[data-chart="owasp-radar"]') as HTMLElement;
-      if (owaspChart) {
-        const canvas = await html2canvas(owaspChart, { scale: 2, backgroundColor: '#ffffff' });
-        const imgData = canvas.toDataURL('image/png');
-        const imgWidth = contentWidth * 0.9;
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-        doc.addImage(imgData, 'PNG', margin + (contentWidth - imgWidth) / 2, yPos, imgWidth, imgHeight);
-      }
-    } catch (error) {
-      console.error('Error capturing OWASP chart:', error);
+    const owaspImg = await captureChart(owaspChartRef);
+    if (owaspImg) {
+      const imgWidth = contentWidth * 0.9;
+      const tempImg = new Image();
+      tempImg.src = owaspImg;
+      await new Promise(resolve => { tempImg.onload = resolve; });
+      const imgHeight = (tempImg.height * imgWidth) / tempImg.width;
+      doc.addImage(owaspImg, 'PNG', margin + (contentWidth - imgWidth) / 2, yPos, imgWidth, Math.min(imgHeight, 140));
+    } else {
       doc.setFontSize(10);
-      doc.text('Chart could not be rendered', margin, yPos);
+      doc.text('OWASP radar chart - see online report', margin, yPos);
     }
 
     addFooter();
@@ -926,20 +992,17 @@ const Demo = () => {
     doc.text('4. Top Vulnerabilities', margin, yPos);
     yPos += 15;
 
-    try {
-      const html2canvas = (await import('html2canvas')).default;
-      const top10Chart = document.querySelector('[data-chart="top-10-vulnerabilities"]') as HTMLElement;
-      if (top10Chart) {
-        const canvas = await html2canvas(top10Chart, { scale: 2, backgroundColor: '#ffffff' });
-        const imgData = canvas.toDataURL('image/png');
-        const imgWidth = contentWidth;
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-        doc.addImage(imgData, 'PNG', margin, yPos, imgWidth, imgHeight);
-      }
-    } catch (error) {
-      console.error('Error capturing top 10 chart:', error);
+    const top10Img = await captureChart(top10ChartRef);
+    if (top10Img) {
+      const imgWidth = contentWidth;
+      const tempImg = new Image();
+      tempImg.src = top10Img;
+      await new Promise(resolve => { tempImg.onload = resolve; });
+      const imgHeight = (tempImg.height * imgWidth) / tempImg.width;
+      doc.addImage(top10Img, 'PNG', margin, yPos, imgWidth, Math.min(imgHeight, 150));
+    } else {
       doc.setFontSize(10);
-      doc.text('Chart could not be rendered', margin, yPos);
+      doc.text('Top 10 vulnerabilities chart - see online report', margin, yPos);
     }
 
     addFooter();
@@ -951,20 +1014,17 @@ const Demo = () => {
     doc.text('5. Vulnerability Heatmap', margin, yPos);
     yPos += 15;
 
-    try {
-      const html2canvas = (await import('html2canvas')).default;
-      const heatmapChart = document.querySelector('[data-chart="vulnerability-heatmap"]') as HTMLElement;
-      if (heatmapChart) {
-        const canvas = await html2canvas(heatmapChart, { scale: 2, backgroundColor: '#ffffff' });
-        const imgData = canvas.toDataURL('image/png');
-        const imgWidth = contentWidth;
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-        doc.addImage(imgData, 'PNG', margin, yPos, imgWidth, imgHeight);
-      }
-    } catch (error) {
-      console.error('Error capturing heatmap:', error);
+    const heatmapImg = await captureChart(heatmapChartRef);
+    if (heatmapImg) {
+      const imgWidth = contentWidth;
+      const tempImg = new Image();
+      tempImg.src = heatmapImg;
+      await new Promise(resolve => { tempImg.onload = resolve; });
+      const imgHeight = (tempImg.height * imgWidth) / tempImg.width;
+      doc.addImage(heatmapImg, 'PNG', margin, yPos, imgWidth, Math.min(imgHeight, 180));
+    } else {
       doc.setFontSize(10);
-      doc.text('Chart could not be rendered', margin, yPos);
+      doc.text('Vulnerability heatmap - see online report', margin, yPos);
     }
 
     addFooter();
@@ -1143,12 +1203,20 @@ const Demo = () => {
     try {
       const result = await simulateVulnerabilityScan(targetUrl);
       setScanResult(result);
+      // Save to history after successful scan
+      await saveScanToHistory(result);
       toast.success("✅ Scan completed successfully!");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Scan failed");
     } finally {
       setIsScanning(false);
     }
+  };
+
+  // Handle viewing a historical scan
+  const handleViewHistoricalScan = (scanData: ScanResult) => {
+    setScanResult(scanData);
+    toast.info("Loaded historical scan result");
   };
 
   const getSeverityBadge = (severity: string) => {
@@ -1262,245 +1330,282 @@ const Demo = () => {
           </CardContent>
         </Card>
 
-        {/* Scan Results */}
-        {scanResult && (
-          <div className="space-y-6">
-            {/* Charts Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Severity Distribution */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <AlertTriangle className="w-5 h-5" />
-                    Severity Distribution
-                  </CardTitle>
-                  <CardDescription>Breakdown of vulnerabilities by severity level</CardDescription>
-                </CardHeader>
-                <CardContent data-chart="severity">
-                  <SeverityDistributionChart data={scanResult.chart_data.severity_distribution} />
-                </CardContent>
-              </Card>
-
-              {/* Confidence Gauge */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Shield className="w-5 h-5" />
-                    Scan Confidence & Security Score
-                  </CardTitle>
-                  <CardDescription>Overall confidence in scan results</CardDescription>
-                </CardHeader>
-                <CardContent data-chart="confidence">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <ConfidenceGauge confidence={scanResult.chart_data.confidence_overall} />
-                    </div>
-                    <div className="flex flex-col justify-center items-center">
-                      <div className="text-5xl font-bold text-primary">
-                        {scanResult.summary.security_score.toFixed(0)}
+        {/* Tabs for Results and History */}
+        <Tabs defaultValue="results" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 mb-4">
+            <TabsTrigger value="results" className="flex items-center gap-2">
+              <Shield className="w-4 h-4" />
+              Scan Results
+            </TabsTrigger>
+            <TabsTrigger value="history" className="flex items-center gap-2">
+              <History className="w-4 h-4" />
+              Scan History
+            </TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="results">
+            {/* Scan Results */}
+            {scanResult ? (
+              <div className="space-y-6">
+                {/* Charts Section */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Severity Distribution */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <AlertTriangle className="w-5 h-5" />
+                        Severity Distribution
+                      </CardTitle>
+                      <CardDescription>Breakdown of vulnerabilities by severity level</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div ref={severityChartRef} className="bg-white p-4 rounded-lg">
+                        <SeverityDistributionChart data={scanResult.chart_data.severity_distribution} />
                       </div>
-                      <div className="text-sm text-muted-foreground mt-2">Security Score</div>
-                      <div className="mt-4">
-                        {getRiskBadge(scanResult.summary.security_score)}
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+                    </CardContent>
+                  </Card>
 
-            {/* OWASP Radar Chart */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Server className="w-5 h-5" />
-                  OWASP Top 10 Coverage Analysis
-                </CardTitle>
-                <CardDescription>
-                  Immunity levels across OWASP security categories (100% = fully immune)
-                </CardDescription>
-              </CardHeader>
-              <CardContent data-chart="owasp-radar">
-                <OWASPRadarChart data={scanResult.chart_data.owasp_radar} />
-              </CardContent>
-            </Card>
-
-            {/* Top 10 Vulnerabilities */}
-            {scanResult.summary.vulnerable_count > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <AlertTriangle className="w-5 h-5" />
-                    Top Weighted Vulnerabilities
-                  </CardTitle>
-                  <CardDescription>
-                    Most impactful findings ranked by severity × confidence
-                  </CardDescription>
-                </CardHeader>
-                <CardContent data-chart="top10">
-                  <Top10VulnerabilitiesChart data={scanResult.chart_data.top10} />
-                </CardContent>
-              </Card>
-            )}
-            {/* Overall Verdict */}
-            <Alert className={scanResult.summary.critical > 0 ? "border-destructive bg-destructive/10" : "border-primary bg-primary/10"}>
-              <Shield className="h-5 w-5" />
-              <AlertDescription className="ml-2">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="font-semibold text-lg mb-2">
-                      Scan ID: {scanResult.scan_id}
-                    </div>
-                    <div className="flex items-center gap-4 mb-3">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-muted-foreground">Security Score:</span>
-                        <span className="font-bold text-xl">{scanResult.summary.security_score.toFixed(1)}/100</span>
-                        {getRiskBadge(scanResult.summary.security_score)}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-muted-foreground">Confidence:</span>
-                        <span className="font-semibold">{scanResult.confidence_overall}%</span>
-                      </div>
-                    </div>
-                    <p className="text-sm">{scanResult.overall_verdict}</p>
-                  </div>
-                  <Button onClick={() => generatePDF(scanResult)} size="sm">
-                    <Download className="w-4 h-4 mr-2" />
-                    Download PDF
-                  </Button>
-                </div>
-              </AlertDescription>
-            </Alert>
-
-            {/* Summary Statistics */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="w-5 h-5" />
-                  Summary Statistics
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
-                  <div className="text-center p-4 bg-muted rounded-lg">
-                    <div className="text-2xl font-bold">{scanResult.summary.total_checks}</div>
-                    <div className="text-sm text-muted-foreground">Total Checks</div>
-                  </div>
-                  <div className="text-center p-4 bg-green-50 rounded-lg">
-                    <div className="text-2xl font-bold text-green-700">{scanResult.summary.immune_count}</div>
-                    <div className="text-sm text-green-600">Immune</div>
-                  </div>
-                  <div className="text-center p-4 bg-red-50 rounded-lg">
-                    <div className="text-2xl font-bold text-red-700">{scanResult.summary.vulnerable_count}</div>
-                    <div className="text-sm text-red-600">Vulnerable</div>
-                  </div>
-                  <div className="text-center p-4 bg-destructive/10 rounded-lg">
-                    <div className="text-2xl font-bold text-destructive">{scanResult.summary.critical}</div>
-                    <div className="text-sm text-destructive">Critical</div>
-                  </div>
-                  <div className="text-center p-4 bg-orange-50 rounded-lg">
-                    <div className="text-2xl font-bold text-orange-700">{scanResult.summary.high}</div>
-                    <div className="text-sm text-orange-600">High</div>
-                  </div>
-                  <div className="text-center p-4 bg-yellow-50 rounded-lg">
-                    <div className="text-2xl font-bold text-yellow-700">{scanResult.summary.medium}</div>
-                    <div className="text-sm text-yellow-600">Medium</div>
-                  </div>
-                  <div className="text-center p-4 bg-blue-50 rounded-lg">
-                    <div className="text-2xl font-bold text-blue-700">{scanResult.summary.low}</div>
-                    <div className="text-sm text-blue-600">Low</div>
-                  </div>
-                </div>
-
-                <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-                    <Globe className="w-5 h-5 text-primary" />
-                    <div>
-                      <div className="text-sm text-muted-foreground">Platform</div>
-                      <div className="font-semibold capitalize">{scanResult.platform}</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-                    <Server className="w-5 h-5 text-primary" />
-                    <div>
-                      <div className="text-sm text-muted-foreground">Resource Type</div>
-                      <div className="font-semibold capitalize">{scanResult.resource_type}</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-                    <Lock className="w-5 h-5 text-primary" />
-                    <div>
-                      <div className="text-sm text-muted-foreground">TLS Status</div>
-                      <div className="font-semibold">{scanResult.tls.valid ? '✓ Valid' : '✗ Invalid'}</div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Vulnerability Heatmap */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="w-5 h-5" />
-                  OWASP Vulnerability Heatmap
-                </CardTitle>
-                <CardDescription>
-                  Visual matrix of security checks grouped by OWASP category
-                </CardDescription>
-              </CardHeader>
-              <CardContent data-chart="heatmap">
-                <VulnerabilityHeatmap data={scanResult.chart_data.heatmap} />
-              </CardContent>
-            </Card>
-
-            {/* Complete OWASP Compliance Checks */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Complete OWASP Compliance Check ({scanResult.summary.total_checks}+ Categories)</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Collapsible>
-                  <CollapsibleTrigger asChild>
-                    <Button variant="outline" className="w-full justify-between">
-                      <span>View All Security Checks</span>
-                      <ChevronDown className="w-4 h-4" />
-                    </Button>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="mt-4">
-                    <div className="space-y-3 max-h-96 overflow-y-auto">
-                      {scanResult.findings.map((finding) => (
-                        <div
-                          key={finding.id}
-                          className="p-4 border rounded-lg hover:bg-muted/50 transition-colors"
-                        >
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-2">
-                                <span className="font-mono text-xs text-muted-foreground">{finding.id}</span>
-                                <span className="font-semibold">{finding.title}</span>
-                              </div>
-                              <div className="text-sm text-muted-foreground mb-2">
-                                {finding.owasp_category}
-                              </div>
-                              <div className="flex gap-2">
-                                {getStatusBadge(finding.status)}
-                                {getSeverityBadge(finding.severity)}
-                                <Badge variant="secondary">
-                                  Confidence: {finding.confidence}%
-                                </Badge>
-                              </div>
+                  {/* Confidence Gauge */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <Shield className="w-5 h-5" />
+                        Scan Confidence & Security Score
+                      </CardTitle>
+                      <CardDescription>Overall confidence in scan results</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div ref={confidenceChartRef} className="bg-white p-4 rounded-lg">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <ConfidenceGauge confidence={scanResult.chart_data.confidence_overall} />
+                          </div>
+                          <div className="flex flex-col justify-center items-center">
+                            <div className="text-5xl font-bold text-primary">
+                              {scanResult.summary.security_score.toFixed(0)}
+                            </div>
+                            <div className="text-sm text-muted-foreground mt-2">Security Score</div>
+                            <div className="mt-4">
+                              {getRiskBadge(scanResult.summary.security_score)}
                             </div>
                           </div>
                         </div>
-                      ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* OWASP Radar Chart */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Server className="w-5 h-5" />
+                      OWASP Top 10 Coverage Analysis
+                    </CardTitle>
+                    <CardDescription>
+                      Immunity levels across OWASP security categories (100% = fully immune)
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div ref={owaspChartRef} className="bg-white p-4 rounded-lg">
+                      <OWASPRadarChart data={scanResult.chart_data.owasp_radar} />
                     </div>
-                  </CollapsibleContent>
-                </Collapsible>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+                  </CardContent>
+                </Card>
+
+                {/* Top 10 Vulnerabilities */}
+                {scanResult.summary.vulnerable_count > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <AlertTriangle className="w-5 h-5" />
+                        Top Weighted Vulnerabilities
+                      </CardTitle>
+                      <CardDescription>
+                        Most impactful findings ranked by severity × confidence
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div ref={top10ChartRef} className="bg-white p-4 rounded-lg">
+                        <Top10VulnerabilitiesChart data={scanResult.chart_data.top10} />
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+                
+                {/* Overall Verdict */}
+                <Alert className={scanResult.summary.critical > 0 ? "border-destructive bg-destructive/10" : "border-primary bg-primary/10"}>
+                  <Shield className="h-5 w-5" />
+                  <AlertDescription className="ml-2">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="font-semibold text-lg mb-2">
+                          Scan ID: {scanResult.scan_id}
+                        </div>
+                        <div className="flex items-center gap-4 mb-3">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-muted-foreground">Security Score:</span>
+                            <span className="font-bold text-xl">{scanResult.summary.security_score.toFixed(1)}/100</span>
+                            {getRiskBadge(scanResult.summary.security_score)}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-muted-foreground">Confidence:</span>
+                            <span className="font-semibold">{scanResult.confidence_overall}%</span>
+                          </div>
+                        </div>
+                        <p className="text-sm">{scanResult.overall_verdict}</p>
+                      </div>
+                      <Button onClick={() => generatePDF(scanResult)} size="sm">
+                        <Download className="w-4 h-4 mr-2" />
+                        Download PDF
+                      </Button>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+
+                {/* Summary Statistics */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <FileText className="w-5 h-5" />
+                      Summary Statistics
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+                      <div className="text-center p-4 bg-muted rounded-lg">
+                        <div className="text-2xl font-bold">{scanResult.summary.total_checks}</div>
+                        <div className="text-sm text-muted-foreground">Total Checks</div>
+                      </div>
+                      <div className="text-center p-4 bg-green-50 rounded-lg">
+                        <div className="text-2xl font-bold text-green-700">{scanResult.summary.immune_count}</div>
+                        <div className="text-sm text-green-600">Immune</div>
+                      </div>
+                      <div className="text-center p-4 bg-red-50 rounded-lg">
+                        <div className="text-2xl font-bold text-red-700">{scanResult.summary.vulnerable_count}</div>
+                        <div className="text-sm text-red-600">Vulnerable</div>
+                      </div>
+                      <div className="text-center p-4 bg-destructive/10 rounded-lg">
+                        <div className="text-2xl font-bold text-destructive">{scanResult.summary.critical}</div>
+                        <div className="text-sm text-destructive">Critical</div>
+                      </div>
+                      <div className="text-center p-4 bg-orange-50 rounded-lg">
+                        <div className="text-2xl font-bold text-orange-700">{scanResult.summary.high}</div>
+                        <div className="text-sm text-orange-600">High</div>
+                      </div>
+                      <div className="text-center p-4 bg-yellow-50 rounded-lg">
+                        <div className="text-2xl font-bold text-yellow-700">{scanResult.summary.medium}</div>
+                        <div className="text-sm text-yellow-600">Medium</div>
+                      </div>
+                      <div className="text-center p-4 bg-blue-50 rounded-lg">
+                        <div className="text-2xl font-bold text-blue-700">{scanResult.summary.low}</div>
+                        <div className="text-sm text-blue-600">Low</div>
+                      </div>
+                    </div>
+
+                    <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+                        <Globe className="w-5 h-5 text-primary" />
+                        <div>
+                          <div className="text-sm text-muted-foreground">Platform</div>
+                          <div className="font-semibold capitalize">{scanResult.platform}</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+                        <Server className="w-5 h-5 text-primary" />
+                        <div>
+                          <div className="text-sm text-muted-foreground">Resource Type</div>
+                          <div className="font-semibold capitalize">{scanResult.resource_type}</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+                        <Lock className="w-5 h-5 text-primary" />
+                        <div>
+                          <div className="text-sm text-muted-foreground">TLS Status</div>
+                          <div className="font-semibold">{scanResult.tls.valid ? '✓ Valid' : '✗ Invalid'}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Vulnerability Heatmap */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <FileText className="w-5 h-5" />
+                      OWASP Vulnerability Heatmap
+                    </CardTitle>
+                    <CardDescription>
+                      Visual matrix of security checks grouped by OWASP category
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div ref={heatmapChartRef} className="bg-white p-4 rounded-lg">
+                      <VulnerabilityHeatmap data={scanResult.chart_data.heatmap} />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Complete OWASP Compliance Checks */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Complete OWASP Compliance Check ({scanResult.summary.total_checks}+ Categories)</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <Collapsible>
+                      <CollapsibleTrigger asChild>
+                        <Button variant="outline" className="w-full justify-between">
+                          <span>View All Security Checks</span>
+                          <ChevronDown className="w-4 h-4" />
+                        </Button>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="mt-4">
+                        <div className="space-y-3 max-h-96 overflow-y-auto">
+                          {scanResult.findings.map((finding) => (
+                            <div
+                              key={finding.id}
+                              className="p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                            >
+                              <div className="flex items-start justify-between gap-4">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <span className="font-mono text-xs text-muted-foreground">{finding.id}</span>
+                                    <span className="font-semibold">{finding.title}</span>
+                                  </div>
+                                  <div className="text-sm text-muted-foreground mb-2">
+                                    {finding.owasp_category}
+                                  </div>
+                                  <div className="flex gap-2">
+                                    {getStatusBadge(finding.status)}
+                                    {getSeverityBadge(finding.severity)}
+                                    <Badge variant="secondary">
+                                      Confidence: {finding.confidence}%
+                                    </Badge>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  </CardContent>
+                </Card>
+              </div>
+            ) : (
+              <div className="text-center py-16 text-muted-foreground">
+                <Shield className="w-16 h-16 mx-auto mb-4 opacity-30" />
+                <h3 className="text-lg font-semibold mb-2">No Scan Results</h3>
+                <p>Enter a URL above and click "Start Scan" to begin vulnerability analysis</p>
+              </div>
+            )}
+          </TabsContent>
+          
+          <TabsContent value="history">
+            <ScanHistory key={historyKey} onViewScan={handleViewHistoricalScan} />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

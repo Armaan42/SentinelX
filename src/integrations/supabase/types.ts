@@ -14,7 +14,69 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      scan_history: {
+        Row: {
+          confidence_overall: number
+          created_at: string
+          critical_count: number
+          final_url: string
+          high_count: number
+          id: string
+          immune_count: number
+          info_count: number
+          low_count: number
+          medium_count: number
+          platform: string | null
+          risk_level: string
+          scan_id: string
+          scan_result: Json
+          security_score: number
+          target_url: string
+          total_findings: number
+          vulnerable_count: number
+        }
+        Insert: {
+          confidence_overall?: number
+          created_at?: string
+          critical_count?: number
+          final_url: string
+          high_count?: number
+          id?: string
+          immune_count?: number
+          info_count?: number
+          low_count?: number
+          medium_count?: number
+          platform?: string | null
+          risk_level?: string
+          scan_id: string
+          scan_result?: Json
+          security_score?: number
+          target_url: string
+          total_findings?: number
+          vulnerable_count?: number
+        }
+        Update: {
+          confidence_overall?: number
+          created_at?: string
+          critical_count?: number
+          final_url?: string
+          high_count?: number
+          id?: string
+          immune_count?: number
+          info_count?: number
+          low_count?: number
+          medium_count?: number
+          platform?: string | null
+          risk_level?: string
+          scan_id?: string
+          scan_result?: Json
+          security_score?: number
+          target_url?: string
+          total_findings?: number
+          vulnerable_count?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
