@@ -9,7 +9,7 @@ interface OWASPRadarChartProps {
 
 const OWASPRadarChart = ({ data }: OWASPRadarChartProps) => {
   const chartData = data.labels.map((label, index) => ({
-    category: label.length > 20 ? label.substring(0, 18) + '...' : label,
+    category: label.length > 15 ? label.substring(0, 13) + '...' : label,
     fullCategory: label,
     immunity: data.values[index]
   }));
@@ -17,10 +17,10 @@ const OWASPRadarChart = ({ data }: OWASPRadarChartProps) => {
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-background border border-border rounded-lg p-3 shadow-lg">
-          <p className="font-semibold">{payload[0].payload.fullCategory}</p>
-          <p className="text-sm text-muted-foreground">
-            Immunity Score: {payload[0].value}%
+        <div className="bg-card border border-border rounded-lg p-3 shadow-lg">
+          <p className="font-semibold text-white">{payload[0].payload.fullCategory}</p>
+          <p className="text-sm text-gray-300">
+            Immunity Score: <span className="font-bold text-white">{payload[0].value}%</span>
           </p>
         </div>
       );
@@ -29,28 +29,32 @@ const OWASPRadarChart = ({ data }: OWASPRadarChartProps) => {
   };
 
   return (
-    <ResponsiveContainer width="100%" height={400}>
-      <RadarChart data={chartData}>
-        <PolarGrid stroke="hsl(var(--border))" />
-        <PolarAngleAxis 
-          dataKey="category" 
-          tick={{ fill: 'hsl(var(--foreground))', fontSize: 11 }}
-        />
-        <PolarRadiusAxis 
-          angle={90} 
-          domain={[0, 100]}
-          tick={{ fill: 'hsl(var(--muted-foreground))' }}
-        />
-        <Radar 
-          name="Immunity Score" 
-          dataKey="immunity" 
-          stroke="hsl(var(--primary))" 
-          fill="hsl(var(--primary))" 
-          fillOpacity={0.6} 
-        />
-        <Tooltip content={<CustomTooltip />} />
-      </RadarChart>
-    </ResponsiveContainer>
+    <div className="bg-card rounded-lg p-4">
+      <ResponsiveContainer width="100%" height={400}>
+        <RadarChart data={chartData}>
+          <PolarGrid stroke="#444" />
+          <PolarAngleAxis 
+            dataKey="category" 
+            tick={{ fill: '#ffffff', fontSize: 11 }}
+          />
+          <PolarRadiusAxis 
+            angle={90} 
+            domain={[0, 100]}
+            tick={{ fill: '#999999', fontSize: 10 }}
+            axisLine={{ stroke: '#444' }}
+          />
+          <Radar 
+            name="Immunity Score" 
+            dataKey="immunity" 
+            stroke="#3b82f6"
+            fill="#3b82f6"
+            fillOpacity={0.5}
+            strokeWidth={2}
+          />
+          <Tooltip content={<CustomTooltip />} />
+        </RadarChart>
+      </ResponsiveContainer>
+    </div>
   );
 };
 

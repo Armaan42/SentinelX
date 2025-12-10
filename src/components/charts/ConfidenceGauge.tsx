@@ -14,7 +14,7 @@ const ConfidenceGauge = ({ confidence }: ConfidenceGaugeProps) => {
   ];
 
   return (
-    <div className="relative">
+    <div className="relative bg-card rounded-lg p-4">
       <ResponsiveContainer width="100%" height={200}>
         <RadialBarChart 
           cx="50%" 
@@ -32,7 +32,7 @@ const ConfidenceGauge = ({ confidence }: ConfidenceGaugeProps) => {
             tick={false}
           />
           <RadialBar
-            background
+            background={{ fill: '#333' }}
             dataKey="value"
             cornerRadius={10}
             fill={data[0].fill}
@@ -43,7 +43,7 @@ const ConfidenceGauge = ({ confidence }: ConfidenceGaugeProps) => {
         <div className="text-4xl font-bold" style={{ color: data[0].fill }}>
           {confidence}%
         </div>
-        <div className="text-sm text-muted-foreground mt-1">Confidence</div>
+        <div className="text-sm text-gray-400 mt-1">Confidence</div>
       </div>
     </div>
   );
