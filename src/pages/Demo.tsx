@@ -740,7 +740,7 @@ const Demo = () => {
   };
 
   const generatePDF = async (result: ScanResult) => {
-    toast.info("Generating professional PDF report with charts...");
+    toast.info("Generating detailed PDF report...");
     
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
@@ -773,8 +773,24 @@ const Demo = () => {
       doc.setTextColor(0, 0, 0);
     };
 
+    // Helper to get risk level
+    const getRiskLevel = (score: number): string => {
+      if (score >= 90) return 'SECURE';
+      if (score >= 70) return 'LOW RISK';
+      if (score >= 50) return 'MEDIUM RISK';
+      if (score >= 30) return 'HIGH RISK';
+      return 'CRITICAL RISK';
+    };
+
+    const currentDate = new Date().toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+    const displayUrl = result.final_url.length > 60 ? result.final_url.substring(0, 60) + '...' : result.final_url;
+
     // ===== PAGE 1: COVER PAGE =====
-    doc.setFillColor(15, 23, 42); // Dark background
+    doc.setFillColor(15, 23, 42);
     doc.rect(0, 0, pageWidth, pageHeight, 'F');
     
     doc.setTextColor(255, 255, 255);
@@ -792,15 +808,9 @@ const Demo = () => {
     
     doc.setFontSize(12);
     doc.setFont('helvetica', 'normal');
-    const currentDate = new Date().toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
-    });
     doc.text(currentDate, pageWidth / 2, 165, { align: 'center' });
     
     doc.setFontSize(10);
-    const displayUrl = result.final_url.length > 60 ? result.final_url.substring(0, 60) + '...' : result.final_url;
     doc.text(displayUrl, pageWidth / 2, 185, { align: 'center' });
 
     // ===== PAGE 2: TABLE OF CONTENTS =====
@@ -808,19 +818,19 @@ const Demo = () => {
     doc.setTextColor(0, 0, 0);
     doc.setFontSize(28);
     doc.setFont('helvetica', 'bold');
-    doc.text('Overview', margin, yPos);
+    doc.text('Table of Contents', margin, yPos);
     yPos += 20;
 
     doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
     const tocItems = [
-      { title: '1 Executive Summary', page: 3 },
-      { title: '2 Severity Distribution', page: 4 },
-      { title: '3 OWASP Top 10 Coverage', page: 5 },
-      { title: '4 Top Vulnerabilities', page: 6 },
-      { title: '5 Vulnerability Heatmap', page: 7 },
-      { title: '6 Detailed Findings', page: 8 },
-      { title: '7 Recommendations', page: '9+' },
+      { title: '1. Executive Summary', page: 3 },
+      { title: '2. Scan Overview & Statistics', page: 4 },
+      { title: '3. Severity Breakdown', page: 5 },
+      { title: '4. OWASP Top 10 Analysis', page: 6 },
+      { title: '5. Detailed Findings', page: 7 },
+      { title: '6. Technical Details', page: '8+' },
+      { title: '7. Recommendations', page: '9+' },
     ];
 
     tocItems.forEach(item => {
@@ -841,7 +851,7 @@ const Demo = () => {
     doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
     const introLines = doc.splitTextToSize(
-      'Vulnerability scans were conducted on the target system. This report contains discovered potential vulnerabilities classified by severity. Higher severity indicates greater risk of data breach, loss of integrity, or system availability.',
+      `A comprehensive vulnerability scan was conducted on ${result.final_url} on ${currentDate}. This report provides a detailed analysis of all security findings, categorized by severity and mapped to OWASP Top 10 categories.`,
       contentWidth
     );
     introLines.forEach((line: string) => {
@@ -850,16 +860,122 @@ const Demo = () => {
     });
     yPos += 10;
 
-    // 1.1 Total Vulnerabilities
+    // Overall Assessment
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text('1.1 Total Vulnerabilities', margin, yPos);
+    doc.text('Overall Security Assessment', margin, yPos);
     yPos += 10;
 
-    doc.setFontSize(10);
+    const riskLevel = getRiskLevel(result.summary.security_score);
+    doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
-    doc.text('Below are the total number of vulnerabilities found by severity.', margin, yPos);
-    yPos += 8;
+    
+    const assessmentText = `The target system received a Security Score of ${result.summary.security_score.toFixed(1)} out of 100, which is classified as "${riskLevel}". The overall confidence level for this assessment is ${result.confidence_overall}%.`;
+    const assessmentLines = doc.splitTextToSize(assessmentText, contentWidth);
+    assessmentLines.forEach((line: string) => {
+      doc.text(line, margin, yPos);
+      yPos += 6;
+    });
+    yPos += 10;
+
+    // Verdict
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Verdict', margin, yPos);
+    yPos += 10;
+
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    const verdictLines = doc.splitTextToSize(result.overall_verdict, contentWidth);
+    verdictLines.forEach((line: string) => {
+      checkPageBreak(6);
+      doc.text(line, margin, yPos);
+      yPos += 6;
+    });
+
+    addFooter();
+
+    // ===== PAGE 4: SCAN OVERVIEW & STATISTICS =====
+    addNewPage();
+    doc.setFontSize(24);
+    doc.setFont('helvetica', 'bold');
+    doc.text('2. Scan Overview & Statistics', margin, yPos);
+    yPos += 15;
+
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Target Information', margin, yPos);
+    yPos += 10;
+
+    autoTable(doc, {
+      startY: yPos,
+      head: [['Property', 'Value']],
+      body: [
+        ['Input URL', result.input_url],
+        ['Final URL', result.final_url],
+        ['Platform Detected', result.platform.charAt(0).toUpperCase() + result.platform.slice(1)],
+        ['Resource Type', result.resource_type.charAt(0).toUpperCase() + result.resource_type.slice(1)],
+        ['Status Code', result.status_code.toString()],
+        ['Content Type', result.content_type],
+        ['DNS Resolved', result.dns_resolution.resolved ? 'Yes' : 'No'],
+        ['IP Addresses', result.dns_resolution.ips.join(', ') || 'N/A'],
+      ],
+      theme: 'striped',
+      headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: 'bold' },
+      margin: { left: margin, right: margin },
+    });
+
+    yPos = (doc as any).lastAutoTable.finalY + 15;
+
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('TLS/SSL Configuration', margin, yPos);
+    yPos += 10;
+
+    autoTable(doc, {
+      startY: yPos,
+      head: [['Property', 'Value']],
+      body: [
+        ['TLS Valid', result.tls.valid ? 'Yes' : 'No'],
+        ['Certificate Expires In', `${result.tls.expires_in_days} days`],
+        ['Protocols Supported', result.tls.protocols.join(', ')],
+      ],
+      theme: 'striped',
+      headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: 'bold' },
+      margin: { left: margin, right: margin },
+    });
+
+    yPos = (doc as any).lastAutoTable.finalY + 15;
+
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Scan Statistics', margin, yPos);
+    yPos += 10;
+
+    autoTable(doc, {
+      startY: yPos,
+      head: [['Metric', 'Value']],
+      body: [
+        ['Total Security Checks', result.summary.total_checks.toString()],
+        ['Vulnerabilities Found', result.summary.vulnerable_count.toString()],
+        ['Immune Checks', result.summary.immune_count.toString()],
+        ['Security Score', `${result.summary.security_score.toFixed(1)}/100`],
+        ['Overall Confidence', `${result.confidence_overall}%`],
+        ['Risk Level', riskLevel],
+      ],
+      theme: 'striped',
+      headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: 'bold' },
+      margin: { left: margin, right: margin },
+    });
+
+    addFooter();
+
+    // ===== PAGE 5: SEVERITY BREAKDOWN =====
+    addNewPage();
+    doc.setFontSize(24);
+    doc.setFont('helvetica', 'bold');
+    doc.text('3. Severity Breakdown', margin, yPos);
+    yPos += 15;
 
     const severityCounts = {
       critical: result.findings.filter(f => f.severity === 'critical').length,
@@ -869,172 +985,137 @@ const Demo = () => {
       info: result.findings.filter(f => f.severity === 'info').length,
     };
 
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    const severityIntro = 'The following table shows the distribution of findings by severity level. Critical and High severity issues require immediate attention.';
+    const severityIntroLines = doc.splitTextToSize(severityIntro, contentWidth);
+    severityIntroLines.forEach((line: string) => {
+      doc.text(line, margin, yPos);
+      yPos += 6;
+    });
+    yPos += 10;
+
     autoTable(doc, {
       startY: yPos,
-      head: [['Critical', 'High', 'Medium', 'Low', 'Info']],
-      body: [[
-        severityCounts.critical,
-        severityCounts.high,
-        severityCounts.medium,
-        severityCounts.low,
-        severityCounts.info
-      ]],
+      head: [['Severity', 'Count', 'Description']],
+      body: [
+        ['CRITICAL', severityCounts.critical.toString(), 'Immediate exploitation possible; may lead to full system compromise'],
+        ['HIGH', severityCounts.high.toString(), 'Significant risk; exploitation could lead to data breach or system access'],
+        ['MEDIUM', severityCounts.medium.toString(), 'Moderate risk; could be exploited under specific conditions'],
+        ['LOW', severityCounts.low.toString(), 'Minor risk; limited impact or difficult to exploit'],
+        ['INFO', severityCounts.info.toString(), 'Informational findings; best practices and hardening recommendations'],
+      ],
       theme: 'grid',
       headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: 'bold' },
+      bodyStyles: { fontSize: 10 },
+      columnStyles: {
+        0: { cellWidth: 25 },
+        1: { cellWidth: 20, halign: 'center' },
+        2: { cellWidth: 'auto' },
+      },
       margin: { left: margin, right: margin },
     });
 
     yPos = (doc as any).lastAutoTable.finalY + 15;
 
-    // 1.2 Report Coverage
+    // Status breakdown
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text('1.2 Report Coverage', margin, yPos);
+    doc.text('Vulnerability Status Summary', margin, yPos);
     yPos += 10;
 
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.text('This report includes findings for 1 target scanned.', margin, yPos);
-    yPos += 8;
-
-    // Helper to get risk level
-    const getRiskLevel = (score: number): string => {
-      if (score >= 90) return 'SECURE';
-      if (score >= 70) return 'LOW RISK';
-      if (score >= 50) return 'MEDIUM RISK';
-      if (score >= 30) return 'HIGH RISK';
-      return 'CRITICAL RISK';
-    };
+    const vulnerableFindings = result.findings.filter(f => f.status === 'vulnerable');
+    const immuneFindings = result.findings.filter(f => f.status === 'immune');
+    const unknownFindings = result.findings.filter(f => f.status === 'unknown');
 
     autoTable(doc, {
       startY: yPos,
-      head: [['Metric', 'Value']],
+      head: [['Status', 'Count', 'Description']],
       body: [
-        ['Target URL', displayUrl],
-        ['Scan Date', currentDate],
-        ['Total Findings', result.findings.length.toString()],
-        ['Vulnerabilities', result.summary.vulnerable_count.toString()],
-        ['Security Score', `${result.summary.security_score.toFixed(1)}/100`],
-        ['Overall Confidence', `${result.confidence_overall}%`],
-        ['Risk Level', getRiskLevel(result.summary.security_score)],
-        ['Platform Detected', result.platform],
+        ['VULNERABLE', vulnerableFindings.length.toString(), 'Active vulnerabilities that require remediation'],
+        ['IMMUNE', immuneFindings.length.toString(), 'Security controls properly implemented'],
+        ['UNKNOWN', unknownFindings.length.toString(), 'Could not determine status; manual review recommended'],
       ],
-      theme: 'striped',
+      theme: 'grid',
       headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: 'bold' },
+      bodyStyles: { fontSize: 10 },
       margin: { left: margin, right: margin },
     });
 
     addFooter();
 
-    // ===== PAGE 4: SEVERITY DISTRIBUTION CHART =====
+    // ===== PAGE 6: OWASP TOP 10 ANALYSIS =====
     addNewPage();
     doc.setFontSize(24);
     doc.setFont('helvetica', 'bold');
-    doc.text('2. Severity Distribution', margin, yPos);
+    doc.text('4. OWASP Top 10 Analysis', margin, yPos);
     yPos += 15;
 
-    // Capture severity chart using ref
-    const severityImg = await captureChart(severityChartRef);
-    if (severityImg) {
-      const imgWidth = contentWidth * 0.8;
-      // Create temp image to get dimensions
-      const tempImg = new Image();
-      tempImg.src = severityImg;
-      await new Promise(resolve => { tempImg.onload = resolve; });
-      const imgHeight = (tempImg.height * imgWidth) / tempImg.width;
-      doc.addImage(severityImg, 'PNG', margin + (contentWidth - imgWidth) / 2, yPos, imgWidth, Math.min(imgHeight, 120));
-      yPos += Math.min(imgHeight, 120) + 10;
-    } else {
-      doc.setFontSize(10);
-      doc.text('Severity distribution chart - see online report', margin, yPos);
-      yPos += 10;
-    }
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    const owaspIntro = 'The findings have been mapped to the OWASP Top 10 2021 categories. This provides a standardized framework for understanding and prioritizing security risks.';
+    const owaspIntroLines = doc.splitTextToSize(owaspIntro, contentWidth);
+    owaspIntroLines.forEach((line: string) => {
+      doc.text(line, margin, yPos);
+      yPos += 6;
+    });
+    yPos += 10;
 
-    // Capture confidence gauge
-    const confidenceImg = await captureChart(confidenceChartRef);
-    if (confidenceImg && yPos + 80 < pageHeight - margin) {
-      const imgWidth = contentWidth * 0.6;
-      const tempImg = new Image();
-      tempImg.src = confidenceImg;
-      await new Promise(resolve => { tempImg.onload = resolve; });
-      const imgHeight = (tempImg.height * imgWidth) / tempImg.width;
-      doc.addImage(confidenceImg, 'PNG', margin + (contentWidth - imgWidth) / 2, yPos, imgWidth, Math.min(imgHeight, 100));
-    }
+    // Group findings by OWASP category
+    const owaspCategories = [
+      'A01 - Broken Access Control',
+      'A02 - Cryptographic Failures',
+      'A03 - Injection',
+      'A04 - Insecure Design',
+      'A05 - Security Misconfiguration',
+      'A06 - Vulnerable and Outdated Components',
+      'A07 - Identification and Authentication Failures',
+      'A08 - Software and Data Integrity Failures',
+      'A09 - Security Logging and Monitoring Failures',
+      'A10 - Server-Side Request Forgery',
+    ];
+
+    const owaspData = owaspCategories.map(category => {
+      const categoryFindings = result.findings.filter(f => f.owasp_category === category);
+      const vulnerable = categoryFindings.filter(f => f.status === 'vulnerable').length;
+      const immune = categoryFindings.filter(f => f.status === 'immune').length;
+      return [category, categoryFindings.length.toString(), vulnerable.toString(), immune.toString()];
+    });
+
+    autoTable(doc, {
+      startY: yPos,
+      head: [['OWASP Category', 'Total Checks', 'Vulnerable', 'Immune']],
+      body: owaspData,
+      theme: 'striped',
+      headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9 },
+      bodyStyles: { fontSize: 9 },
+      columnStyles: {
+        0: { cellWidth: 80 },
+        1: { cellWidth: 25, halign: 'center' },
+        2: { cellWidth: 25, halign: 'center' },
+        3: { cellWidth: 25, halign: 'center' },
+      },
+      margin: { left: margin, right: margin },
+    });
 
     addFooter();
 
-    // ===== PAGE 5: OWASP TOP 10 COVERAGE =====
+    // ===== PAGE 7+: DETAILED FINDINGS =====
     addNewPage();
     doc.setFontSize(24);
     doc.setFont('helvetica', 'bold');
-    doc.text('3. OWASP Top 10 Coverage', margin, yPos);
+    doc.text('5. Detailed Findings', margin, yPos);
     yPos += 15;
 
-    const owaspImg = await captureChart(owaspChartRef);
-    if (owaspImg) {
-      const imgWidth = contentWidth * 0.9;
-      const tempImg = new Image();
-      tempImg.src = owaspImg;
-      await new Promise(resolve => { tempImg.onload = resolve; });
-      const imgHeight = (tempImg.height * imgWidth) / tempImg.width;
-      doc.addImage(owaspImg, 'PNG', margin + (contentWidth - imgWidth) / 2, yPos, imgWidth, Math.min(imgHeight, 140));
-    } else {
-      doc.setFontSize(10);
-      doc.text('OWASP radar chart - see online report', margin, yPos);
-    }
-
-    addFooter();
-
-    // ===== PAGE 6: TOP VULNERABILITIES =====
-    addNewPage();
-    doc.setFontSize(24);
-    doc.setFont('helvetica', 'bold');
-    doc.text('4. Top Vulnerabilities', margin, yPos);
-    yPos += 15;
-
-    const top10Img = await captureChart(top10ChartRef);
-    if (top10Img) {
-      const imgWidth = contentWidth;
-      const tempImg = new Image();
-      tempImg.src = top10Img;
-      await new Promise(resolve => { tempImg.onload = resolve; });
-      const imgHeight = (tempImg.height * imgWidth) / tempImg.width;
-      doc.addImage(top10Img, 'PNG', margin, yPos, imgWidth, Math.min(imgHeight, 150));
-    } else {
-      doc.setFontSize(10);
-      doc.text('Top 10 vulnerabilities chart - see online report', margin, yPos);
-    }
-
-    addFooter();
-
-    // ===== PAGE 7: VULNERABILITY HEATMAP =====
-    addNewPage();
-    doc.setFontSize(24);
-    doc.setFont('helvetica', 'bold');
-    doc.text('5. Vulnerability Heatmap', margin, yPos);
-    yPos += 15;
-
-    const heatmapImg = await captureChart(heatmapChartRef);
-    if (heatmapImg) {
-      const imgWidth = contentWidth;
-      const tempImg = new Image();
-      tempImg.src = heatmapImg;
-      await new Promise(resolve => { tempImg.onload = resolve; });
-      const imgHeight = (tempImg.height * imgWidth) / tempImg.width;
-      doc.addImage(heatmapImg, 'PNG', margin, yPos, imgWidth, Math.min(imgHeight, 180));
-    } else {
-      doc.setFontSize(10);
-      doc.text('Vulnerability heatmap - see online report', margin, yPos);
-    }
-
-    addFooter();
-
-    // ===== PAGE 8+: DETAILED FINDINGS =====
-    addNewPage();
-    doc.setFontSize(24);
-    doc.setFont('helvetica', 'bold');
-    doc.text('6. Detailed Findings', margin, yPos);
-    yPos += 15;
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    const findingsIntro = 'This section provides a comprehensive breakdown of all security findings, organized by severity level. Each finding includes the vulnerability title, OWASP category, current status, confidence level, evidence, and recommended remediation steps.';
+    const findingsIntroLines = doc.splitTextToSize(findingsIntro, contentWidth);
+    findingsIntroLines.forEach((line: string) => {
+      doc.text(line, margin, yPos);
+      yPos += 6;
+    });
+    yPos += 10;
 
     // Group findings by severity
     const groupedFindings = {
@@ -1053,70 +1134,124 @@ const Demo = () => {
       info: [156, 163, 175],
     };
 
+    const severityDescriptions: Record<string, string> = {
+      critical: 'These vulnerabilities pose an immediate and severe risk. They can be exploited easily and may result in complete system compromise, data breach, or significant financial loss. Remediation should begin immediately.',
+      high: 'High severity vulnerabilities represent significant security risks that could lead to unauthorized access, data exposure, or service disruption. These should be addressed as a priority within the next sprint or release cycle.',
+      medium: 'Medium severity issues indicate areas where security could be improved. While exploitation may require specific conditions or additional access, they should be remediated in a timely manner.',
+      low: 'Low severity findings represent minor security concerns or deviations from best practices. These have limited impact but should be addressed as part of regular maintenance.',
+      info: 'Informational findings highlight areas for potential improvement and security hardening recommendations. These are not vulnerabilities but represent opportunities to strengthen the security posture.',
+    };
+
     Object.entries(groupedFindings).forEach(([severity, findings]) => {
       if (findings.length === 0) return;
 
-      checkPageBreak(30);
+      checkPageBreak(50);
+      
+      // Section header
       doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
       const color = severityColors[severity];
       doc.setTextColor(color[0], color[1], color[2]);
-      doc.text(`${severity.toUpperCase()} Severity (${findings.length} findings)`, margin, yPos);
+      doc.text(`${severity.toUpperCase()} SEVERITY (${findings.length} findings)`, margin, yPos);
       doc.setTextColor(0, 0, 0);
-      yPos += 12;
+      yPos += 10;
+
+      // Severity description
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'italic');
+      const descLines = doc.splitTextToSize(severityDescriptions[severity], contentWidth);
+      descLines.forEach((line: string) => {
+        checkPageBreak(5);
+        doc.text(line, margin, yPos);
+        yPos += 5;
+      });
+      yPos += 8;
 
       findings.forEach((finding, idx) => {
-        checkPageBreak(70);
+        checkPageBreak(80);
+        
+        // Finding header
+        doc.setFillColor(240, 240, 240);
+        doc.rect(margin, yPos - 3, contentWidth, 8, 'F');
         
         doc.setFontSize(11);
         doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 0, 0);
         const titleText = `${idx + 1}. ${finding.title}`;
-        doc.text(titleText, margin, yPos);
-        yPos += 7;
+        doc.text(titleText, margin + 2, yPos + 2);
+        yPos += 12;
 
+        // Finding ID and category
         doc.setFontSize(9);
         doc.setFont('helvetica', 'normal');
-        doc.setTextColor(100, 100, 100);
-        doc.text(`OWASP: ${finding.owasp_category} | Confidence: ${finding.confidence}% | Status: ${finding.status.toUpperCase()}`, margin + 3, yPos);
-        doc.setTextColor(0, 0, 0);
-        yPos += 7;
-
-        // Recommendation
-        doc.setFont('helvetica', 'bold');
-        doc.text('Recommendation:', margin + 3, yPos);
+        doc.setTextColor(80, 80, 80);
+        doc.text(`ID: ${finding.id}`, margin, yPos);
         yPos += 5;
+        doc.text(`OWASP Category: ${finding.owasp_category}`, margin, yPos);
+        yPos += 5;
+        doc.text(`Status: ${finding.status.toUpperCase()} | Confidence: ${finding.confidence}%`, margin, yPos);
+        doc.setTextColor(0, 0, 0);
+        yPos += 8;
+
+        // Evidence section
+        if (finding.evidence && finding.evidence.length > 0) {
+          checkPageBreak(20);
+          doc.setFontSize(10);
+          doc.setFont('helvetica', 'bold');
+          doc.text('Evidence:', margin, yPos);
+          yPos += 6;
+          
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(9);
+          finding.evidence.forEach((ev: string) => {
+            checkPageBreak(6);
+            const evLines = doc.splitTextToSize(`• ${ev}`, contentWidth - 10);
+            evLines.forEach((line: string) => {
+              checkPageBreak(5);
+              doc.text(line, margin + 5, yPos);
+              yPos += 5;
+            });
+          });
+          yPos += 3;
+        }
+
+        // Recommendation section
+        checkPageBreak(20);
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Recommendation:', margin, yPos);
+        yPos += 6;
         
         doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
         const recLines = doc.splitTextToSize(finding.recommendation, contentWidth - 10);
         recLines.forEach((line: string) => {
           checkPageBreak(5);
-          doc.text(line, margin + 8, yPos);
+          doc.text(line, margin + 5, yPos);
           yPos += 5;
         });
         yPos += 3;
 
-        // Evidence (max 3 items)
-        if (finding.evidence && finding.evidence.length > 0) {
+        // References section
+        if (finding.references && finding.references.length > 0) {
           checkPageBreak(15);
+          doc.setFontSize(10);
           doc.setFont('helvetica', 'bold');
-          doc.text('Evidence:', margin + 3, yPos);
-          yPos += 5;
+          doc.text('References:', margin, yPos);
+          yPos += 6;
           
           doc.setFont('helvetica', 'normal');
           doc.setFontSize(8);
-          finding.evidence.slice(0, 3).forEach((ev: string) => {
-            const evLines = doc.splitTextToSize(`• ${ev}`, contentWidth - 15);
-            evLines.forEach((line: string) => {
-              checkPageBreak(4);
-              doc.text(line, margin + 8, yPos);
-              yPos += 4;
-            });
+          doc.setTextColor(0, 0, 200);
+          finding.references.forEach((ref: string) => {
+            checkPageBreak(5);
+            doc.text(`• ${ref}`, margin + 5, yPos);
+            yPos += 5;
           });
-          doc.setFontSize(9);
-          yPos += 3;
+          doc.setTextColor(0, 0, 0);
         }
 
-        yPos += 8;
+        yPos += 10;
         
         // Add separator line
         if (idx < findings.length - 1) {
@@ -1130,6 +1265,69 @@ const Demo = () => {
       addFooter();
     });
 
+    // ===== TECHNICAL DETAILS PAGE =====
+    addNewPage();
+    doc.setFontSize(24);
+    doc.setFont('helvetica', 'bold');
+    doc.text('6. Technical Details', margin, yPos);
+    yPos += 15;
+
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('HTTP Response Headers', margin, yPos);
+    yPos += 10;
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    const headerIntro = 'The following HTTP response headers were observed during the scan. Security-relevant headers are critical for protecting against common web attacks.';
+    const headerIntroLines = doc.splitTextToSize(headerIntro, contentWidth);
+    headerIntroLines.forEach((line: string) => {
+      doc.text(line, margin, yPos);
+      yPos += 5;
+    });
+    yPos += 8;
+
+    const headerData = Object.entries(result.headers).map(([key, value]) => {
+      const truncatedValue = value.length > 80 ? value.substring(0, 77) + '...' : value;
+      return [key, truncatedValue];
+    });
+
+    if (headerData.length > 0) {
+      autoTable(doc, {
+        startY: yPos,
+        head: [['Header Name', 'Value']],
+        body: headerData,
+        theme: 'striped',
+        headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9 },
+        bodyStyles: { fontSize: 8 },
+        columnStyles: {
+          0: { cellWidth: 50 },
+          1: { cellWidth: 'auto' },
+        },
+        margin: { left: margin, right: margin },
+      });
+      yPos = (doc as any).lastAutoTable.finalY + 15;
+    }
+
+    // Redirect chain if exists
+    if (result.redirect_chain && result.redirect_chain.length > 1) {
+      checkPageBreak(40);
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Redirect Chain', margin, yPos);
+      yPos += 10;
+
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      result.redirect_chain.forEach((url, idx) => {
+        checkPageBreak(6);
+        doc.text(`${idx + 1}. ${url}`, margin + 5, yPos);
+        yPos += 6;
+      });
+    }
+
+    addFooter();
+
     // ===== FINAL PAGE: RECOMMENDATIONS SUMMARY =====
     addNewPage();
     doc.setFontSize(24);
@@ -1139,45 +1337,80 @@ const Demo = () => {
 
     doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
+    const recIntro = 'Based on the findings of this security assessment, the following actions are recommended to improve the security posture of the target system:';
+    const recIntroLines = doc.splitTextToSize(recIntro, contentWidth);
+    recIntroLines.forEach((line: string) => {
+      doc.text(line, margin, yPos);
+      yPos += 6;
+    });
+    yPos += 10;
+
     const recommendations = [
-      'Address all CRITICAL and HIGH severity vulnerabilities immediately',
-      'Implement Web Application Firewall (WAF) for additional protection',
-      'Enable security headers: CSP, HSTS, X-Frame-Options, X-Content-Type-Options',
-      'Regular security audits and penetration testing recommended',
-      'Keep all software, frameworks, and dependencies up to date',
-      'Implement proper input validation and output encoding throughout application',
-      'Use HTTPS everywhere with strong TLS 1.3 configuration',
-      'Establish regular backup and disaster recovery procedures',
-      'Provide security awareness training for development and operations teams',
-      'Monitor and log security events continuously with SIEM integration',
-      'Implement rate limiting and DDoS protection',
-      'Regular vulnerability scanning on monthly basis'
+      { priority: 'IMMEDIATE', items: [
+        'Address all CRITICAL severity vulnerabilities within 24-48 hours',
+        'Review and remediate HIGH severity findings within the current sprint',
+        'Ensure all admin endpoints require proper authentication and authorization',
+      ]},
+      { priority: 'SHORT-TERM', items: [
+        'Implement missing security headers: CSP, HSTS, X-Frame-Options, X-Content-Type-Options',
+        'Enable HTTPS with TLS 1.2+ and strong cipher suites',
+        'Review and update all third-party dependencies to latest secure versions',
+        'Implement Web Application Firewall (WAF) for additional protection',
+      ]},
+      { priority: 'LONG-TERM', items: [
+        'Establish regular vulnerability scanning on a monthly basis',
+        'Implement security awareness training for development and operations teams',
+        'Set up continuous security monitoring and logging with SIEM integration',
+        'Conduct annual penetration testing by qualified security professionals',
+        'Develop and maintain an incident response plan',
+      ]},
     ];
 
-    recommendations.forEach((rec, idx) => {
-      checkPageBreak(12);
+    recommendations.forEach(section => {
+      checkPageBreak(30);
+      doc.setFontSize(12);
       doc.setFont('helvetica', 'bold');
-      doc.text(`${idx + 1}.`, margin, yPos);
+      doc.text(`${section.priority} Actions:`, margin, yPos);
+      yPos += 8;
+
+      doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
-      const recLines = doc.splitTextToSize(rec, contentWidth - 15);
-      let firstLine = true;
-      recLines.forEach((line: string) => {
-        checkPageBreak(6);
-        doc.text(line, margin + (firstLine ? 10 : 10), yPos);
-        yPos += 6;
-        firstLine = false;
+      section.items.forEach(item => {
+        checkPageBreak(12);
+        const itemLines = doc.splitTextToSize(`• ${item}`, contentWidth - 10);
+        itemLines.forEach((line: string) => {
+          checkPageBreak(5);
+          doc.text(line, margin + 5, yPos);
+          yPos += 5;
+        });
+        yPos += 2;
       });
-      yPos += 3;
+      yPos += 8;
     });
 
+    // Closing notes
     yPos += 10;
-    checkPageBreak(30);
+    checkPageBreak(40);
+    doc.setDrawColor(15, 23, 42);
+    doc.line(margin, yPos, pageWidth - margin, yPos);
+    yPos += 10;
+
     doc.setFontSize(10);
     doc.setFont('helvetica', 'italic');
     doc.setTextColor(100, 100, 100);
-    doc.text('This report was generated by Security Scanner Pro.', margin, yPos);
+    const closingText = 'This report was generated by Security Scanner Pro. The findings are based on automated scanning techniques and should be validated by security professionals. For questions, support, or to schedule a comprehensive security assessment, please contact your security team.';
+    const closingLines = doc.splitTextToSize(closingText, contentWidth);
+    closingLines.forEach((line: string) => {
+      checkPageBreak(5);
+      doc.text(line, margin, yPos);
+      yPos += 5;
+    });
+
+    yPos += 10;
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Report Generated: ${new Date().toISOString()}`, margin, yPos);
     yPos += 5;
-    doc.text('For questions or support, please contact your security team.', margin, yPos);
+    doc.text(`Scan ID: ${result.scan_id}`, margin, yPos);
 
     addFooter();
 
@@ -1187,7 +1420,7 @@ const Demo = () => {
     const fileName = `${domain}_security_report_${date}.pdf`;
 
     doc.save(fileName);
-    toast.success("Professional PDF report downloaded successfully!");
+    toast.success("Detailed PDF report downloaded successfully!");
   };
 
   const handleStartScan = async () => {
