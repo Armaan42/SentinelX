@@ -51,6 +51,21 @@ interface VulnerabilityFinding {
   confidence_factors?: string[];
 }
 
+interface PlatformInfo {
+  name: string;
+  category: string;
+  version: string | null;
+  confidence: number;
+  indicators: string[];
+}
+
+interface ResourceTypeInfo {
+  type: string;
+  confidence: number;
+  description: string;
+  indicators: string[];
+}
+
 interface ScanResult {
   scan_id: string;
   input_url: string;
@@ -60,8 +75,8 @@ interface ScanResult {
   confidence_overall: number;
   status_code: number;
   content_type: string;
-  resource_type: 'product' | 'article' | 'api' | 'static' | 'unknown';
-  platform: 'amazon' | 'shopify' | 'wordpress' | 'unknown';
+  resource_type: ResourceTypeInfo;
+  platform: PlatformInfo;
   asin: string | null;
   availability: 'available' | 'unavailable' | 'unknown';
   blocked_by: string | null;
@@ -624,14 +639,25 @@ const Demo = () => {
     const result: ScanResult = {
       scan_id: backendResult.scan_id,
       input_url: url,
-      final_url: backendResult.target_url || url,
+      final_url: backendResult.final_url || backendResult.target_url || url,
       redirect_chain: [url],
       exists: true,
       confidence_overall,
       status_code: 200,
       content_type: 'text/html',
-      resource_type: 'unknown',
-      platform: 'unknown',
+      resource_type: backendResult.resource_type || {
+        type: 'Web Page',
+        confidence: 50,
+        description: 'Standard web page',
+        indicators: []
+      },
+      platform: backendResult.platform || {
+        name: 'Unknown',
+        category: 'Unknown',
+        version: null,
+        confidence: 0,
+        indicators: []
+      },
       asin: null,
       availability: 'unknown',
       blocked_by: null,
@@ -700,7 +726,7 @@ const Demo = () => {
           scan_id: result.scan_id,
           target_url: result.input_url,
           final_url: result.final_url,
-          platform: result.platform,
+          platform: result.platform.name, // Store just the platform name
           security_score: result.summary.security_score,
           confidence_overall: result.confidence_overall,
           total_findings: result.summary.total_checks,
@@ -915,8 +941,8 @@ const Demo = () => {
       body: [
         ['Input URL', result.input_url],
         ['Final URL', result.final_url],
-        ['Platform Detected', result.platform.charAt(0).toUpperCase() + result.platform.slice(1)],
-        ['Resource Type', result.resource_type.charAt(0).toUpperCase() + result.resource_type.slice(1)],
+        ['Platform Detected', `${result.platform.name} (${result.platform.category}) - ${result.platform.confidence}% confidence`],
+        ['Resource Type', `${result.resource_type.type} - ${result.resource_type.confidence}% confidence`],
         ['Status Code', result.status_code.toString()],
         ['Content Type', result.content_type],
         ['DNS Resolved', result.dns_resolution.resolved ? 'Yes' : 'No'],
@@ -1741,16 +1767,23 @@ const Demo = () => {
                     <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
                         <Globe className="w-5 h-5 text-primary" />
-                        <div>
+                        <div className="flex-1">
                           <div className="text-sm text-muted-foreground">Platform</div>
-                          <div className="font-semibold capitalize">{scanResult.platform}</div>
+                          <div className="font-semibold">{scanResult.platform.name}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {scanResult.platform.category} • {scanResult.platform.confidence}% confidence
+                            {scanResult.platform.version && ` • v${scanResult.platform.version}`}
+                          </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
                         <Server className="w-5 h-5 text-primary" />
-                        <div>
+                        <div className="flex-1">
                           <div className="text-sm text-muted-foreground">Resource Type</div>
-                          <div className="font-semibold capitalize">{scanResult.resource_type}</div>
+                          <div className="font-semibold">{scanResult.resource_type.type}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {scanResult.resource_type.description} • {scanResult.resource_type.confidence}% confidence
+                          </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
