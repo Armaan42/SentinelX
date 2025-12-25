@@ -47,6 +47,8 @@ interface VulnerabilityFinding {
   evidence: string[];
   recommendation: string;
   references: string[];
+  explanation?: string;
+  confidence_factors?: string[];
 }
 
 interface ScanResult {
@@ -1794,31 +1796,114 @@ const Demo = () => {
                         </Button>
                       </CollapsibleTrigger>
                       <CollapsibleContent className="mt-4">
-                        <div className="space-y-3 max-h-96 overflow-y-auto">
+                        <div className="space-y-3 max-h-[600px] overflow-y-auto">
                           {scanResult.findings.map((finding) => (
-                            <div
-                              key={finding.id}
-                              className="p-4 border rounded-lg hover:bg-muted/50 transition-colors"
-                            >
-                              <div className="flex items-start justify-between gap-4">
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2 mb-2">
-                                    <span className="font-mono text-xs text-muted-foreground">{finding.id}</span>
-                                    <span className="font-semibold">{finding.title}</span>
+                            <Collapsible key={finding.id}>
+                              <div className="p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                                <div className="flex items-start justify-between gap-4">
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <span className="font-mono text-xs text-muted-foreground">{finding.id}</span>
+                                      <span className="font-semibold">{finding.title}</span>
+                                    </div>
+                                    <div className="text-sm text-muted-foreground mb-2">
+                                      {finding.owasp_category}
+                                    </div>
+                                    <div className="flex flex-wrap gap-2 mb-2">
+                                      {getStatusBadge(finding.status)}
+                                      {getSeverityBadge(finding.severity)}
+                                      <Badge variant="secondary">
+                                        Confidence: {finding.confidence}%
+                                      </Badge>
+                                    </div>
+                                    
+                                    {/* Explanation Preview */}
+                                    {finding.explanation && (
+                                      <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
+                                        {finding.explanation}
+                                      </p>
+                                    )}
                                   </div>
-                                  <div className="text-sm text-muted-foreground mb-2">
-                                    {finding.owasp_category}
-                                  </div>
-                                  <div className="flex gap-2">
-                                    {getStatusBadge(finding.status)}
-                                    {getSeverityBadge(finding.severity)}
-                                    <Badge variant="secondary">
-                                      Confidence: {finding.confidence}%
-                                    </Badge>
-                                  </div>
+                                  <CollapsibleTrigger asChild>
+                                    <Button variant="ghost" size="sm" className="shrink-0">
+                                      <ChevronDown className="w-4 h-4" />
+                                      <span className="ml-1 text-xs">Details</span>
+                                    </Button>
+                                  </CollapsibleTrigger>
                                 </div>
+                                
+                                <CollapsibleContent className="mt-4 pt-4 border-t space-y-4">
+                                  {/* Full Explanation */}
+                                  {finding.explanation && (
+                                    <div className="space-y-2">
+                                      <h4 className="text-sm font-semibold flex items-center gap-2">
+                                        <Info className="w-4 h-4" />
+                                        Analysis Explanation
+                                      </h4>
+                                      <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
+                                        {finding.explanation}
+                                      </p>
+                                    </div>
+                                  )}
+                                  
+                                  {/* Confidence Factors */}
+                                  {finding.confidence_factors && finding.confidence_factors.length > 0 && (
+                                    <div className="space-y-2">
+                                      <h4 className="text-sm font-semibold">Confidence Score Breakdown</h4>
+                                      <ul className="text-sm text-muted-foreground space-y-1 bg-muted/50 p-3 rounded-lg">
+                                        {finding.confidence_factors.map((factor, idx) => (
+                                          <li key={idx} className="flex items-start gap-2">
+                                            <span className="text-primary">•</span>
+                                            <span>{factor}</span>
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  )}
+                                  
+                                  {/* Evidence */}
+                                  {finding.evidence && finding.evidence.length > 0 && (
+                                    <div className="space-y-2">
+                                      <h4 className="text-sm font-semibold">Evidence</h4>
+                                      <ul className="text-sm text-muted-foreground space-y-1 bg-muted/50 p-3 rounded-lg font-mono text-xs">
+                                        {finding.evidence.map((ev, idx) => (
+                                          <li key={idx} className="break-all">{ev}</li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  )}
+                                  
+                                  {/* Recommendation */}
+                                  <div className="space-y-2">
+                                    <h4 className="text-sm font-semibold">Recommendation</h4>
+                                    <p className="text-sm text-muted-foreground bg-primary/5 p-3 rounded-lg border border-primary/20">
+                                      {finding.recommendation}
+                                    </p>
+                                  </div>
+                                  
+                                  {/* References */}
+                                  {finding.references && finding.references.length > 0 && (
+                                    <div className="space-y-2">
+                                      <h4 className="text-sm font-semibold">References</h4>
+                                      <ul className="text-sm space-y-1">
+                                        {finding.references.map((ref, idx) => (
+                                          <li key={idx}>
+                                            <a 
+                                              href={ref} 
+                                              target="_blank" 
+                                              rel="noopener noreferrer"
+                                              className="text-primary hover:underline break-all"
+                                            >
+                                              {ref}
+                                            </a>
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  )}
+                                </CollapsibleContent>
                               </div>
-                            </div>
+                            </Collapsible>
                           ))}
                         </div>
                       </CollapsibleContent>
