@@ -1525,54 +1525,86 @@ const Demo = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
+    <div className="min-h-screen bg-background cyber-grid relative overflow-hidden">
+      {/* Ambient background effects */}
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-secondary/10 pointer-events-none" />
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-accent/10 rounded-full blur-3xl pointer-events-none" />
+      
+      <div className="container mx-auto px-6 py-10 max-w-7xl relative z-10">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-4">
+        <div className="flex items-center justify-between mb-12">
+          <div className="flex items-center gap-6">
             <Link to="/">
-              <Button variant="ghost" size="icon">
+              <Button variant="outline" size="icon" className="border-border/50 hover:border-primary/50 hover:bg-primary/10 transition-all duration-300">
                 <ArrowLeft className="w-5 h-5" />
               </Button>
             </Link>
             <div>
-              <h1 className="text-3xl font-bold flex items-center gap-2">
-                <Shield className="w-8 h-8 text-primary" />
-                Live Vulnerability Scanner
+              <h1 className="text-4xl font-bold flex items-center gap-3 text-foreground">
+                <div className="p-3 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20 glow-cyber">
+                  <Shield className="w-8 h-8 text-primary" />
+                </div>
+                <span className="gradient-text">Vulnerability Scanner</span>
               </h1>
-              <p className="text-muted-foreground mt-1">
-                Passive OWASP-based security analysis with 100+ checks
+              <p className="text-muted-foreground mt-2 text-lg">
+                Enterprise-grade OWASP security analysis • 100+ automated checks
               </p>
             </div>
           </div>
+          <div className="hidden md:flex items-center gap-3">
+            <Badge variant="outline" className="border-primary/30 text-primary bg-primary/5 px-3 py-1">
+              <Lock className="w-3 h-3 mr-1" />
+              Passive Scan
+            </Badge>
+            <Badge variant="outline" className="border-cyber-green/30 text-cyber-green bg-cyber-green/5 px-3 py-1">
+              <CheckCircle2 className="w-3 h-3 mr-1" />
+              Non-Destructive
+            </Badge>
+          </div>
         </div>
 
-        {/* Scanner Input */}
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Globe className="w-5 h-5" />
-              Enter Target URL
+        {/* Scanner Input - Enhanced */}
+        <Card className="mb-10 border-border/50 bg-card/80 backdrop-blur-sm shadow-elevated overflow-hidden group">
+          <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-accent/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          <CardHeader className="relative pb-4">
+            <CardTitle className="flex items-center gap-3 text-xl">
+              <div className="p-2 rounded-lg bg-primary/10 border border-primary/20">
+                <Globe className="w-5 h-5 text-primary" />
+              </div>
+              Target URL
             </CardTitle>
-            <CardDescription>
-              Provide the website URL for comprehensive security analysis (passive, non-destructive)
+            <CardDescription className="text-base">
+              Enter the website URL for comprehensive security vulnerability assessment
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="relative">
             <div className="flex gap-4">
-              <Input
-                type="url"
-                placeholder="https://example.com"
-                value={targetUrl}
-                onChange={(e) => setTargetUrl(e.target.value)}
-                disabled={isScanning}
-                className="flex-1"
-                onKeyDown={(e) => e.key === 'Enter' && !isScanning && handleStartScan()}
-              />
+              <div className="flex-1 relative">
+                <Input
+                  type="url"
+                  placeholder="https://example.com"
+                  value={targetUrl}
+                  onChange={(e) => setTargetUrl(e.target.value)}
+                  disabled={isScanning}
+                  className="h-14 text-lg px-5 bg-input/50 border-border/50 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-300"
+                  onKeyDown={(e) => e.key === 'Enter' && !isScanning && handleStartScan()}
+                />
+                {isScanning && (
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                    <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                  </div>
+                )}
+              </div>
               <Button
                 onClick={handleStartScan}
                 disabled={isScanning}
                 size="lg"
+                className={`h-14 px-8 text-lg font-semibold transition-all duration-300 ${
+                  isScanning 
+                    ? 'bg-muted text-muted-foreground' 
+                    : 'bg-gradient-to-r from-primary to-accent hover:shadow-cyber hover:scale-[1.02]'
+                }`}
               >
                 {isScanning ? (
                   <>
@@ -1589,12 +1621,21 @@ const Demo = () => {
             </div>
 
             {isScanning && (
-              <div className="mt-6 space-y-3">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">{currentScanPhase}</span>
-                  <span className="font-medium">{Math.round(scanProgress)}%</span>
+              <div className="mt-8 space-y-4 p-6 rounded-xl bg-muted/30 border border-border/50">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-3">
+                    <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                    <span className="text-muted-foreground font-medium">{currentScanPhase}</span>
+                  </div>
+                  <span className="font-bold text-xl text-primary">{Math.round(scanProgress)}%</span>
                 </div>
-                <Progress value={scanProgress} className="h-2" />
+                <div className="relative">
+                  <Progress value={scanProgress} className="h-3 bg-muted" />
+                  <div 
+                    className="absolute top-0 left-0 h-3 bg-gradient-to-r from-primary via-accent to-primary rounded-full transition-all duration-300"
+                    style={{ width: `${scanProgress}%`, backgroundSize: '200% 100%', animation: 'shimmer 2s infinite' }}
+                  />
+                </div>
               </div>
             )}
           </CardContent>
@@ -1602,59 +1643,65 @@ const Demo = () => {
 
         {/* Tabs for Results and History */}
         <Tabs defaultValue="results" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-4">
-            <TabsTrigger value="results" className="flex items-center gap-2">
-              <Shield className="w-4 h-4" />
-              Scan Results
+          <TabsList className="grid w-full grid-cols-2 mb-8 h-14 p-1 bg-muted/50 border border-border/50 rounded-xl">
+            <TabsTrigger value="results" className="flex items-center gap-2 h-full rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-lg data-[state=active]:border-border/50 transition-all duration-300">
+              <Shield className="w-5 h-5" />
+              <span className="font-semibold">Scan Results</span>
             </TabsTrigger>
-            <TabsTrigger value="history" className="flex items-center gap-2">
-              <History className="w-4 h-4" />
-              Scan History
+            <TabsTrigger value="history" className="flex items-center gap-2 h-full rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-lg data-[state=active]:border-border/50 transition-all duration-300">
+              <History className="w-5 h-5" />
+              <span className="font-semibold">Scan History</span>
             </TabsTrigger>
           </TabsList>
           
           <TabsContent value="results">
             {/* Scan Results */}
             {scanResult ? (
-              <div className="space-y-6">
+              <div className="space-y-8">
                 {/* Charts Section */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                   {/* Severity Distribution */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2 text-base">
-                        <AlertTriangle className="w-5 h-5" />
+                  <Card className="border-border/50 bg-card/80 backdrop-blur-sm shadow-card hover:shadow-elevated transition-all duration-300 group overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-br from-destructive/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                    <CardHeader className="relative">
+                      <CardTitle className="flex items-center gap-3 text-lg">
+                        <div className="p-2 rounded-lg bg-destructive/10 border border-destructive/20">
+                          <AlertTriangle className="w-5 h-5 text-destructive" />
+                        </div>
                         Severity Distribution
                       </CardTitle>
-                      <CardDescription>Breakdown of vulnerabilities by severity level</CardDescription>
+                      <CardDescription className="text-base">Breakdown of vulnerabilities by severity level</CardDescription>
                     </CardHeader>
-                    <CardContent>
-                      <div ref={severityChartRef} className="bg-white p-4 rounded-lg">
+                    <CardContent className="relative">
+                      <div ref={severityChartRef} className="bg-background/50 p-6 rounded-xl border border-border/30">
                         <SeverityDistributionChart data={scanResult.chart_data.severity_distribution} />
                       </div>
                     </CardContent>
                   </Card>
 
                   {/* Confidence Gauge */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2 text-base">
-                        <Shield className="w-5 h-5" />
-                        Scan Confidence & Security Score
+                  <Card className="border-border/50 bg-card/80 backdrop-blur-sm shadow-card hover:shadow-elevated transition-all duration-300 group overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                    <CardHeader className="relative">
+                      <CardTitle className="flex items-center gap-3 text-lg">
+                        <div className="p-2 rounded-lg bg-primary/10 border border-primary/20">
+                          <Shield className="w-5 h-5 text-primary" />
+                        </div>
+                        Security Score & Confidence
                       </CardTitle>
-                      <CardDescription>Overall confidence in scan results</CardDescription>
+                      <CardDescription className="text-base">Overall security posture assessment</CardDescription>
                     </CardHeader>
-                    <CardContent>
-                      <div ref={confidenceChartRef} className="bg-white p-4 rounded-lg">
-                        <div className="grid grid-cols-2 gap-4">
+                    <CardContent className="relative">
+                      <div ref={confidenceChartRef} className="bg-background/50 p-6 rounded-xl border border-border/30">
+                        <div className="grid grid-cols-2 gap-6">
                           <div>
                             <ConfidenceGauge confidence={scanResult.chart_data.confidence_overall} />
                           </div>
                           <div className="flex flex-col justify-center items-center">
-                            <div className="text-5xl font-bold text-primary">
+                            <div className="text-6xl font-bold gradient-text">
                               {scanResult.summary.security_score.toFixed(0)}
                             </div>
-                            <div className="text-sm text-muted-foreground mt-2">Security Score</div>
+                            <div className="text-sm text-muted-foreground mt-2 font-medium">Security Score</div>
                             <div className="mt-4">
                               {getRiskBadge(scanResult.summary.security_score)}
                             </div>
@@ -1666,18 +1713,21 @@ const Demo = () => {
                 </div>
 
                 {/* OWASP Radar Chart */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Server className="w-5 h-5" />
+                <Card className="border-border/50 bg-card/80 backdrop-blur-sm shadow-card hover:shadow-elevated transition-all duration-300 group overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-br from-accent/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                  <CardHeader className="relative">
+                    <CardTitle className="flex items-center gap-3 text-lg">
+                      <div className="p-2 rounded-lg bg-accent/10 border border-accent/20">
+                        <Server className="w-5 h-5 text-accent" />
+                      </div>
                       OWASP Top 10 Coverage Analysis
                     </CardTitle>
-                    <CardDescription>
+                    <CardDescription className="text-base">
                       Immunity levels across OWASP security categories (100% = fully immune)
                     </CardDescription>
                   </CardHeader>
-                  <CardContent>
-                    <div ref={owaspChartRef} className="bg-white p-4 rounded-lg">
+                  <CardContent className="relative">
+                    <div ref={owaspChartRef} className="bg-background/50 p-6 rounded-xl border border-border/30">
                       <OWASPRadarChart data={scanResult.chart_data.owasp_radar} />
                     </div>
                   </CardContent>
@@ -1685,121 +1735,144 @@ const Demo = () => {
 
                 {/* Top 10 Vulnerabilities */}
                 {scanResult.summary.vulnerable_count > 0 && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <AlertTriangle className="w-5 h-5" />
+                  <Card className="border-border/50 bg-card/80 backdrop-blur-sm shadow-card hover:shadow-elevated transition-all duration-300 group overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-br from-cyber-amber/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                    <CardHeader className="relative">
+                      <CardTitle className="flex items-center gap-3 text-lg">
+                        <div className="p-2 rounded-lg bg-cyber-amber/10 border border-cyber-amber/20">
+                          <AlertTriangle className="w-5 h-5 text-cyber-amber" />
+                        </div>
                         Top Weighted Vulnerabilities
                       </CardTitle>
-                      <CardDescription>
+                      <CardDescription className="text-base">
                         Most impactful findings ranked by severity × confidence
                       </CardDescription>
                     </CardHeader>
-                    <CardContent>
-                      <div ref={top10ChartRef} className="bg-white p-4 rounded-lg">
+                    <CardContent className="relative">
+                      <div ref={top10ChartRef} className="bg-background/50 p-6 rounded-xl border border-border/30">
                         <Top10VulnerabilitiesChart data={scanResult.chart_data.top10} />
                       </div>
                     </CardContent>
                   </Card>
                 )}
                 
-                {/* Overall Verdict */}
-                <Alert className={scanResult.summary.critical > 0 ? "border-destructive bg-destructive/10" : "border-primary bg-primary/10"}>
-                  <Shield className="h-5 w-5" />
-                  <AlertDescription className="ml-2">
-                    <div className="flex items-start justify-between">
+                {/* Overall Verdict - Enhanced */}
+                <Card className={`border-2 overflow-hidden ${scanResult.summary.critical > 0 ? 'border-destructive/50 bg-destructive/5' : 'border-primary/50 bg-primary/5'}`}>
+                  <CardContent className="p-8">
+                    <div className="flex items-start justify-between gap-6">
                       <div className="flex-1">
-                        <div className="font-semibold text-lg mb-2">
-                          Scan ID: {scanResult.scan_id}
+                        <div className="flex items-center gap-4 mb-4">
+                          <div className={`p-3 rounded-xl ${scanResult.summary.critical > 0 ? 'bg-destructive/10' : 'bg-primary/10'}`}>
+                            <Shield className={`w-8 h-8 ${scanResult.summary.critical > 0 ? 'text-destructive' : 'text-primary'}`} />
+                          </div>
+                          <div>
+                            <div className="text-sm text-muted-foreground font-mono">Scan ID</div>
+                            <div className="font-semibold text-lg">{scanResult.scan_id}</div>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-4 mb-3">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm text-muted-foreground">Security Score:</span>
-                            <span className="font-bold text-xl">{scanResult.summary.security_score.toFixed(1)}/100</span>
+                        <div className="flex flex-wrap items-center gap-6 mb-4">
+                          <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/50">
+                            <span className="text-sm text-muted-foreground">Security Score</span>
+                            <span className="font-bold text-2xl gradient-text">{scanResult.summary.security_score.toFixed(1)}</span>
+                            <span className="text-muted-foreground">/100</span>
                             {getRiskBadge(scanResult.summary.security_score)}
                           </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm text-muted-foreground">Confidence:</span>
-                            <span className="font-semibold">{scanResult.confidence_overall}%</span>
+                          <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/50">
+                            <span className="text-sm text-muted-foreground">Confidence</span>
+                            <span className="font-bold text-xl">{scanResult.confidence_overall}%</span>
                           </div>
                         </div>
-                        <p className="text-sm">{scanResult.overall_verdict}</p>
+                        <p className="text-muted-foreground leading-relaxed">{scanResult.overall_verdict}</p>
                       </div>
-                      <Button onClick={() => generatePDF(scanResult)} size="sm">
-                        <Download className="w-4 h-4 mr-2" />
-                        Download PDF
+                      <Button 
+                        onClick={() => generatePDF(scanResult)} 
+                        size="lg"
+                        className="bg-gradient-to-r from-primary to-accent hover:shadow-cyber transition-all duration-300"
+                      >
+                        <Download className="w-5 h-5 mr-2" />
+                        Download PDF Report
                       </Button>
                     </div>
-                  </AlertDescription>
-                </Alert>
+                  </CardContent>
+                </Card>
 
-                {/* Summary Statistics */}
-                <Card>
+                {/* Summary Statistics - Enhanced */}
+                <Card className="border-border/50 bg-card/80 backdrop-blur-sm shadow-card">
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <FileText className="w-5 h-5" />
+                    <CardTitle className="flex items-center gap-3 text-lg">
+                      <div className="p-2 rounded-lg bg-secondary/50 border border-border/30">
+                        <FileText className="w-5 h-5 text-foreground" />
+                      </div>
                       Summary Statistics
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
-                      <div className="text-center p-4 bg-muted rounded-lg">
-                        <div className="text-2xl font-bold">{scanResult.summary.total_checks}</div>
-                        <div className="text-sm text-muted-foreground">Total Checks</div>
+                      <div className="text-center p-5 bg-muted/50 rounded-xl border border-border/30 hover:border-primary/30 transition-all duration-300">
+                        <div className="text-3xl font-bold text-foreground">{scanResult.summary.total_checks}</div>
+                        <div className="text-sm text-muted-foreground mt-1">Total Checks</div>
                       </div>
-                      <div className="text-center p-4 bg-green-50 rounded-lg">
-                        <div className="text-2xl font-bold text-green-700">{scanResult.summary.immune_count}</div>
-                        <div className="text-sm text-green-600">Immune</div>
+                      <div className="text-center p-5 bg-cyber-green/10 rounded-xl border border-cyber-green/30 hover:border-cyber-green/50 transition-all duration-300">
+                        <div className="text-3xl font-bold text-cyber-green">{scanResult.summary.immune_count}</div>
+                        <div className="text-sm text-cyber-green/80 mt-1">Immune</div>
                       </div>
-                      <div className="text-center p-4 bg-red-50 rounded-lg">
-                        <div className="text-2xl font-bold text-red-700">{scanResult.summary.vulnerable_count}</div>
-                        <div className="text-sm text-red-600">Vulnerable</div>
+                      <div className="text-center p-5 bg-destructive/10 rounded-xl border border-destructive/30 hover:border-destructive/50 transition-all duration-300">
+                        <div className="text-3xl font-bold text-destructive">{scanResult.summary.vulnerable_count}</div>
+                        <div className="text-sm text-destructive/80 mt-1">Vulnerable</div>
                       </div>
-                      <div className="text-center p-4 bg-destructive/10 rounded-lg">
-                        <div className="text-2xl font-bold text-destructive">{scanResult.summary.critical}</div>
-                        <div className="text-sm text-destructive">Critical</div>
+                      <div className="text-center p-5 bg-destructive/20 rounded-xl border border-destructive/40 hover:border-destructive/60 transition-all duration-300">
+                        <div className="text-3xl font-bold text-destructive">{scanResult.summary.critical}</div>
+                        <div className="text-sm text-destructive/80 mt-1">Critical</div>
                       </div>
-                      <div className="text-center p-4 bg-orange-50 rounded-lg">
-                        <div className="text-2xl font-bold text-orange-700">{scanResult.summary.high}</div>
-                        <div className="text-sm text-orange-600">High</div>
+                      <div className="text-center p-5 bg-cyber-amber/10 rounded-xl border border-cyber-amber/30 hover:border-cyber-amber/50 transition-all duration-300">
+                        <div className="text-3xl font-bold text-cyber-amber">{scanResult.summary.high}</div>
+                        <div className="text-sm text-cyber-amber/80 mt-1">High</div>
                       </div>
-                      <div className="text-center p-4 bg-yellow-50 rounded-lg">
-                        <div className="text-2xl font-bold text-yellow-700">{scanResult.summary.medium}</div>
-                        <div className="text-sm text-yellow-600">Medium</div>
+                      <div className="text-center p-5 bg-cyber-amber/5 rounded-xl border border-cyber-amber/20 hover:border-cyber-amber/40 transition-all duration-300">
+                        <div className="text-3xl font-bold text-cyber-amber/80">{scanResult.summary.medium}</div>
+                        <div className="text-sm text-cyber-amber/60 mt-1">Medium</div>
                       </div>
-                      <div className="text-center p-4 bg-blue-50 rounded-lg">
-                        <div className="text-2xl font-bold text-blue-700">{scanResult.summary.low}</div>
-                        <div className="text-sm text-blue-600">Low</div>
+                      <div className="text-center p-5 bg-primary/10 rounded-xl border border-primary/30 hover:border-primary/50 transition-all duration-300">
+                        <div className="text-3xl font-bold text-primary">{scanResult.summary.low}</div>
+                        <div className="text-sm text-primary/80 mt-1">Low</div>
                       </div>
                     </div>
 
-                    <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-                        <Globe className="w-5 h-5 text-primary" />
+                    <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="flex items-center gap-4 p-5 bg-muted/30 rounded-xl border border-border/30 hover:border-primary/30 transition-all duration-300">
+                        <div className="p-3 rounded-lg bg-primary/10">
+                          <Globe className="w-6 h-6 text-primary" />
+                        </div>
                         <div className="flex-1">
                           <div className="text-sm text-muted-foreground">Platform</div>
-                          <div className="font-semibold">{scanResult.platform.name}</div>
-                          <div className="text-xs text-muted-foreground">
+                          <div className="font-semibold text-foreground">{scanResult.platform.name}</div>
+                          <div className="text-xs text-muted-foreground mt-1">
                             {scanResult.platform.category} • {scanResult.platform.confidence}% confidence
                             {scanResult.platform.version && ` • v${scanResult.platform.version}`}
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-                        <Server className="w-5 h-5 text-primary" />
+                      <div className="flex items-center gap-4 p-5 bg-muted/30 rounded-xl border border-border/30 hover:border-primary/30 transition-all duration-300">
+                        <div className="p-3 rounded-lg bg-primary/10">
+                          <Server className="w-6 h-6 text-primary" />
+                        </div>
                         <div className="flex-1">
                           <div className="text-sm text-muted-foreground">Resource Type</div>
-                          <div className="font-semibold">{scanResult.resource_type.type}</div>
-                          <div className="text-xs text-muted-foreground">
+                          <div className="font-semibold text-foreground">{scanResult.resource_type.type}</div>
+                          <div className="text-xs text-muted-foreground mt-1">
                             {scanResult.resource_type.description} • {scanResult.resource_type.confidence}% confidence
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-                        <Lock className="w-5 h-5 text-primary" />
+                      <div className="flex items-center gap-4 p-5 bg-muted/30 rounded-xl border border-border/30 hover:border-primary/30 transition-all duration-300">
+                        <div className={`p-3 rounded-lg ${scanResult.tls.valid ? 'bg-cyber-green/10' : 'bg-destructive/10'}`}>
+                          <Lock className={`w-6 h-6 ${scanResult.tls.valid ? 'text-cyber-green' : 'text-destructive'}`} />
+                        </div>
                         <div>
                           <div className="text-sm text-muted-foreground">TLS Status</div>
-                          <div className="font-semibold">{scanResult.tls.valid ? '✓ Valid' : '✗ Invalid'}</div>
+                          <div className={`font-semibold ${scanResult.tls.valid ? 'text-cyber-green' : 'text-destructive'}`}>
+                            {scanResult.tls.valid ? '✓ Valid Certificate' : '✗ Invalid Certificate'}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1807,34 +1880,42 @@ const Demo = () => {
                 </Card>
 
                 {/* Vulnerability Heatmap */}
-                <Card>
+                <Card className="border-border/50 bg-card/80 backdrop-blur-sm shadow-card">
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <FileText className="w-5 h-5" />
+                    <CardTitle className="flex items-center gap-3 text-lg">
+                      <div className="p-2 rounded-lg bg-cyber-purple/10 border border-cyber-purple/20">
+                        <FileText className="w-5 h-5 text-cyber-purple" />
+                      </div>
                       OWASP Vulnerability Heatmap
                     </CardTitle>
-                    <CardDescription>
+                    <CardDescription className="text-base">
                       Visual matrix of security checks grouped by OWASP category
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div ref={heatmapChartRef} className="bg-white p-4 rounded-lg">
+                    <div ref={heatmapChartRef} className="bg-background/50 p-6 rounded-xl border border-border/30">
                       <VulnerabilityHeatmap data={scanResult.chart_data.heatmap} />
                     </div>
                   </CardContent>
                 </Card>
 
                 {/* Complete OWASP Compliance Checks */}
-                <Card>
+                <Card className="border-border/50 bg-card/80 backdrop-blur-sm shadow-card">
                   <CardHeader>
-                    <CardTitle>Complete OWASP Compliance Check ({scanResult.summary.total_checks}+ Categories)</CardTitle>
+                    <CardTitle className="flex items-center gap-3 text-lg">
+                      <div className="p-2 rounded-lg bg-secondary/50 border border-border/30">
+                        <CheckCircle2 className="w-5 h-5 text-foreground" />
+                      </div>
+                      Complete OWASP Compliance Check
+                      <Badge variant="outline" className="ml-2">{scanResult.summary.total_checks}+ Categories</Badge>
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <Collapsible>
                       <CollapsibleTrigger asChild>
-                        <Button variant="outline" className="w-full justify-between">
-                          <span>View All Security Checks</span>
-                          <ChevronDown className="w-4 h-4" />
+                        <Button variant="outline" className="w-full justify-between h-14 text-base border-border/50 hover:border-primary/50 hover:bg-primary/5 transition-all duration-300">
+                          <span className="font-semibold">View All Security Checks</span>
+                          <ChevronDown className="w-5 h-5" />
                         </Button>
                       </CollapsibleTrigger>
                       <CollapsibleContent className="mt-4">
@@ -1954,10 +2035,14 @@ const Demo = () => {
                 </Card>
               </div>
             ) : (
-              <div className="text-center py-16 text-muted-foreground">
-                <Shield className="w-16 h-16 mx-auto mb-4 opacity-30" />
-                <h3 className="text-lg font-semibold mb-2">No Scan Results</h3>
-                <p>Enter a URL above and click "Start Scan" to begin vulnerability analysis</p>
+              <div className="text-center py-24 px-8">
+                <div className="inline-flex p-6 rounded-2xl bg-muted/30 border border-border/30 mb-6">
+                  <Shield className="w-20 h-20 text-muted-foreground/30" />
+                </div>
+                <h3 className="text-2xl font-semibold text-foreground mb-3">No Scan Results Yet</h3>
+                <p className="text-muted-foreground text-lg max-w-md mx-auto">
+                  Enter a URL above and click "Start Scan" to begin your comprehensive vulnerability analysis
+                </p>
               </div>
             )}
           </TabsContent>
