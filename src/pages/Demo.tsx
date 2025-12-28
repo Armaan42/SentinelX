@@ -720,13 +720,21 @@ const Demo = () => {
     };
 
     try {
+      // Get current user - scan history now requires authentication
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        console.log('User not authenticated - scan will not be saved to history');
+        return;
+      }
+
       const { error } = await supabase
         .from('scan_history')
         .insert({
           scan_id: result.scan_id,
           target_url: result.input_url,
           final_url: result.final_url,
-          platform: result.platform.name, // Store just the platform name
+          platform: result.platform.name,
           security_score: result.summary.security_score,
           confidence_overall: result.confidence_overall,
           total_findings: result.summary.total_checks,
@@ -738,11 +746,12 @@ const Demo = () => {
           vulnerable_count: result.summary.vulnerable_count,
           immune_count: result.summary.immune_count,
           risk_level: getRiskLevel(result.summary.security_score),
-          scan_result: result as any
+          scan_result: result as any,
+          user_id: user.id
         });
 
       if (error) throw error;
-      setHistoryKey(prev => prev + 1); // Trigger history refresh
+      setHistoryKey(prev => prev + 1);
     } catch (error) {
       console.error('Failed to save scan to history:', error);
     }
