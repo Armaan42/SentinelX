@@ -33,7 +33,7 @@ export type Database = {
           security_score: number
           target_url: string
           total_findings: number
-          user_id: string | null
+          user_id: string
           vulnerable_count: number
         }
         Insert: {
@@ -54,7 +54,7 @@ export type Database = {
           security_score?: number
           target_url: string
           total_findings?: number
-          user_id?: string | null
+          user_id: string
           vulnerable_count?: number
         }
         Update: {
@@ -75,7 +75,7 @@ export type Database = {
           security_score?: number
           target_url?: string
           total_findings?: number
-          user_id?: string | null
+          user_id?: string
           vulnerable_count?: number
         }
         Relationships: []
