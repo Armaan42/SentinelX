@@ -63,13 +63,12 @@ sequenceDiagram
 
 ```mermaid
 flowchart LR
-    Raw[Raw Findings] --> Weight{Severity Weighting}
-    Weight --> Calc[Base Score Calculation]
-    Calc --> Caps{Apply Grade Caps}
-    Caps -->|Critical Fixes Needed| Penalty[Reduce Score]
-    Caps -->|Missing Headers| Limit[Cap at Grade C/D]
-    Penalty & Limit --> Final[Final Security Score]
-    Final --> Grade[Assign Letter Grade (A-F)]
+    Raw[Raw Findings] --> Base[Base Score Calculation]
+    Base --> Caps{Check Caps}
+    Caps -->|No Caps| Final[Final Security Score]
+    Caps -->|Critical/Missing Headers| Limit[Apply Max Score Limit]
+    Limit --> Final
+    Final --> Grade[Assign Letter Grade]
 ```
 
 ## 🏗️ Architecture
