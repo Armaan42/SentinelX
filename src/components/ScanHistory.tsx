@@ -5,10 +5,10 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { 
-  History, 
-  TrendingUp, 
-  TrendingDown, 
+import {
+  History,
+  TrendingUp,
+  TrendingDown,
   Minus,
   Eye,
   Trash2,
@@ -49,14 +49,12 @@ const ScanHistory = ({ onViewScan }: ScanHistoryProps) => {
   const fetchHistory = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('scan_history')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(50);
-
-      if (error) throw error;
-      setHistory(data || []);
+      const stored = localStorage.getItem('sentinelx_scan_history');
+      if (stored) {
+        setHistory(JSON.parse(stored));
+      } else {
+        setHistory([]);
+      }
     } catch (error) {
       console.error('Error fetching scan history:', error);
       toast.error('Failed to load scan history');
@@ -71,14 +69,9 @@ const ScanHistory = ({ onViewScan }: ScanHistoryProps) => {
 
   const deleteScan = async (id: string) => {
     try {
-      const { error } = await supabase
-        .from('scan_history')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-      
-      setHistory(prev => prev.filter(item => item.id !== id));
+      const newHistory = history.filter(item => item.id !== id);
+      setHistory(newHistory);
+      localStorage.setItem('sentinelx_scan_history', JSON.stringify(newHistory));
       toast.success('Scan deleted');
     } catch (error) {
       toast.error('Failed to delete scan');
@@ -87,15 +80,13 @@ const ScanHistory = ({ onViewScan }: ScanHistoryProps) => {
 
   const viewScan = async (scanId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('scan_history')
-        .select('scan_result')
-        .eq('scan_id', scanId)
-        .single();
-
-      if (error) throw error;
-      if (data?.scan_result && onViewScan) {
-        onViewScan(data.scan_result);
+      const scan = history.find(s => s.scan_id === scanId);
+      // Logic: If scan_result is stored in the history item (which we will ensure in Demo.tsx), use it.
+      // The interface might need updating if we want strict typing, but for now we cast or assume it's there.
+      if (scan && (scan as any).scan_result && onViewScan) {
+        onViewScan((scan as any).scan_result);
+      } else {
+        toast.error('Scan details not found in history');
       }
     } catch (error) {
       toast.error('Failed to load scan result');
@@ -115,7 +106,7 @@ const ScanHistory = ({ onViewScan }: ScanHistoryProps) => {
 
   const getTrendIcon = (currentScore: number, index: number) => {
     if (index >= history.length - 1) return <Minus className="w-4 h-4 text-muted-foreground" />;
-    
+
     const previousScore = history[index + 1]?.security_score || 0;
     if (currentScore > previousScore) {
       return <TrendingUp className="w-4 h-4 text-green-500" />;
@@ -163,10 +154,10 @@ const ScanHistory = ({ onViewScan }: ScanHistoryProps) => {
           <div>
             <CardTitle className="flex items-center gap-2">
               <History className="w-5 h-5" />
-              Scan History
+              Scan History (Local)
             </CardTitle>
             <CardDescription>
-              Track security trends over time and compare reports
+              Track security trends over time (saved to browser)
             </CardDescription>
           </div>
           <Button variant="outline" size="sm" onClick={fetchHistory}>
