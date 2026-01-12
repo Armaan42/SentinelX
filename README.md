@@ -116,15 +116,33 @@ graph TB
 
 ## 6. Tech Stack
 
-| Component | Technology | Role & Description |
-|-----------|------------|--------------------|
-| **Frontend Framework** | React 18 (TypeScript) | Provides the interactive dashboard and report visualization interface. |
-| **Build Tool** | Vite | Ensures high-performance development and optimized production builds. |
-| **Styling System** | Tailwind CSS `shadcn/ui` | Delivers a consistent, responsive, and accessible design system. |
-| **Runtime Environment** | Deno | A secure-by-default runtime for JavaScript/TypeScript, enabling edge execution. |
-| **Serverless Function** | Supabase Edge Functions | Hosts the scanning logic, handling scaling and geographical distribution. |
-| **Visualization** | Recharts & Lucide | Renders complex security data into digestible charts and graphs. |
-| **Data Persistence** | PostgreSQL (Supabase) | Stores scan history, user profiles, and generated reports. |
+The technology stack is architected into four distinct layers to ensure separation of concerns and scalability.
+
+### **Layer 1: Presentation (Client-Side)**
+Responsible for user interaction, configuration, and data visualization.
+-   **Core Framework**: React 18 (TypeScript) - for component-based UI architecture.
+-   **Build System**: Vite - for extremely fast Hot Module Replacement (HMR) and optimized building.
+-   **UI Library**: Shadcn/UI & Tailwind CSS - for a modern, accessible, and responsive design system.
+-   **Visualization**: Recharts - for rendering interactive vulnerability metrics and trend graphs.
+-   **State Management**: React Query (TanStack Query) - for managing asynchronous server state and caching.
+
+### **Layer 2: Execution (Serverless Edge)**
+Responsible for the actual security scanning logic and heuristic analysis.
+-   **Runtime**: Deno - A secure TypeScript runtime that allows execution of untrusted code in a sandboxed environment.
+-   **Compute**: Supabase Edge Functions - Distributed serverless functions that run closer to the user/target, minimizing latency.
+-   **Networking**: Native `fetch` API - Used for crafting HTTP requests, analyzing headers, and measuring response times.
+
+### **Layer 3: Data & Persistence**
+Responsible for storing scan profiles, history, and generated reports.
+-   **Database**: PostgreSQL - Relational storage for structured vulnerability data and user accounts.
+-   **Real-time Engine**: Supabase Realtime - Pushes scan progress updates (e.g., "50% Complete") to the frontend via WebSockets.
+-   **Storage**: Supabase Storage - For persisting generated PDF reports and large evidence logs.
+
+### **Layer 4: Orchestration & Security**
+Responsible for validation, rate limiting, and access control.
+-   **API Gateway**: Supabase Kong Gateway - Handles routing and load balancing.
+-   **Authentication**: Supabase Auth (GoTrue) - Manages user sessions and JWT issuance.
+-   **Security**: Row Level Security (RLS) - Enforces data access policies directly at the database level.
 
 ---
 
