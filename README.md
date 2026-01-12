@@ -32,10 +32,13 @@ SentinelX is a **B2B (Business-to-Business)** solution designed for modern engin
 
 | Feature | B2B (SentinelX) | B2C (Consumer Tools) |
 | :--- | :--- | :--- |
-| **Primary Goal** | Corporate Compliance & Risk Reduction | Personal Device Safety |
-| **Target User** | CISO, DevOps, Security Engineers | Individual Home Users |
-| **Workflow** | JIRA Integration, Automated CI/CD | "Click to Scan" Button |
-| **Output** | Audit-Ready PDF Reports | "You are Safe" Green Checkmark |
+| **The Analogy** | **Industrial Fire Sprinkler System** 🏢 | **Home Smoke Detector** 🏠 |
+| **Who Buys It?** | The VP of Engineering (Company Budget) | You (Personal Wallet) |
+| **Why Buy It?** | To avoid lawsuits, fines, and brand damage. | To avoid viruses on your personal laptop. |
+| **Price Tag** | High Value ($$$$ / month) | Low Cost (Free or $50 / year) |
+| **Workflow** | runs automatically in the cloud (CI/CD). | You manually click "Scan Now". |
+| **If it Fails...** | The company could lose millions in data. | You might lose some personal photos. |
+| **Output** | "Ticket #402 Assigned to Dev Team" | "Your PC is Safe!" Green Checkmark |
 
 While built for enterprise needs (SOC2, ISO 27001), SentinelX uses a **Developer-First (PLG)** motion, allowing individual engineers to start validating their APIs immediately without lengthy sales cycles.
 
