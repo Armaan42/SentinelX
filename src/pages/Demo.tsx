@@ -683,6 +683,7 @@ const Demo = () => {
   const [scanProgress, setScanProgress] = useState(0);
   const [currentScanPhase, setCurrentScanPhase] = useState("");
   const [historyKey, setHistoryKey] = useState(0);
+  const [activeTab, setActiveTab] = useState("results");
 
   // Refs for chart capturing
   const severityChartRef = useRef<HTMLDivElement>(null);
@@ -1794,6 +1795,7 @@ const Demo = () => {
   // Handle viewing a historical scan
   const handleViewHistoricalScan = (scanData: ScanResult) => {
     setScanResult(scanData);
+    setActiveTab("results");
     toast.info("Loaded historical scan result");
   };
 
@@ -1949,7 +1951,7 @@ const Demo = () => {
         </Card>
 
         {/* Tabs for Results and History */}
-        <Tabs defaultValue="results" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-2 mb-8 h-14 p-1 bg-muted/50 border border-border/50 rounded-xl">
             <TabsTrigger value="results" className="flex items-center gap-2 h-full rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-lg data-[state=active]:border-border/50 transition-all duration-300">
               <Shield className="w-5 h-5" />
