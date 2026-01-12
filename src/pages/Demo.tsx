@@ -670,15 +670,7 @@ const generateOWASPChecks = (
 const Demo = () => {
   const [targetUrl, setTargetUrl] = useState("");
   // Initialize from localStorage if available to persist state across navigation
-  const [scanResult, setScanResult] = useState<ScanResult | null>(() => {
-    const saved = localStorage.getItem('sentinelx_last_scan');
-    try {
-      return saved ? JSON.parse(saved) : null;
-    } catch (e) {
-      console.error("Failed to parse saved scan result", e);
-      return null;
-    }
-  });
+  const [scanResult, setScanResult] = useState<ScanResult | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [scanProgress, setScanProgress] = useState(0);
   const [currentScanPhase, setCurrentScanPhase] = useState("");
@@ -692,11 +684,7 @@ const Demo = () => {
   const top10ChartRef = useRef<HTMLDivElement>(null);
   const heatmapChartRef = useRef<HTMLDivElement>(null);
   // Persist scan result changes
-  useEffect(() => {
-    if (scanResult) {
-      localStorage.setItem('sentinelx_last_scan', JSON.stringify(scanResult));
-    }
-  }, [scanResult]);
+
 
   const simulateVulnerabilityScan = async (url: string): Promise<ScanResult> => {
     // Phase 1: Initialize scan
@@ -1794,8 +1782,12 @@ const Demo = () => {
 
   // Handle viewing a historical scan
   const handleViewHistoricalScan = (scanData: ScanResult) => {
+    console.log("Viewing historical scan:", scanData);
     setScanResult(scanData);
-    setActiveTab("results");
+    // Use setTimeout to ensure state updates have time to propagate
+    setTimeout(() => {
+      setActiveTab("results");
+    }, 0);
     toast.info("Loaded historical scan result");
   };
 
