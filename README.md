@@ -21,6 +21,43 @@ SentinelX redefines vulnerability scanning with a **Serverless, Edge-First Archi
 - **Coverage**: OWASP Top 10 (Injection, Broken Access Control, Cryptographic Failures, Security Misconfiguration, SSRF, etc.).
 - **Infrastructure**: Zero-config deployment on Supabase.
 
+### 🌟 New Premium Features
+- **Interactive Visuals**: Zoomable, pannable, and expandable architecture flowcharts for deep technical understanding.
+- **Educational Modules**: 8+ Detailed "Problem Pages" explaining industry challenges with real-world breach scenarios (e.g., Target, Equifax).
+- **Research-Grade Docs**: Dedicated feature pages with "Abstract", "Methodology", and "Implementation" sections.
+
+### 🎯 Market Positioning & Target Audience
+
+SentinelX is a **B2B (Business-to-Business)** solution designed for modern engineering teams.
+
+| Feature | B2B (SentinelX) | B2C (Consumer Tools) |
+| :--- | :--- | :--- |
+| **Primary Goal** | Corporate Compliance & Risk Reduction | Personal Device Safety |
+| **Target User** | CISO, DevOps, Security Engineers | Individual Home Users |
+| **Workflow** | JIRA Integration, Automated CI/CD | "Click to Scan" Button |
+| **Output** | Audit-Ready PDF Reports | "You are Safe" Green Checkmark |
+
+While built for enterprise needs (SOC2, ISO 27001), SentinelX uses a **Developer-First (PLG)** motion, allowing individual engineers to start validating their APIs immediately without lengthy sales cycles.
+
+### 🏭 Enterprise Use Cases
+SentinelX is engineered to solve specific "Business" problems that individual users do not face:
+
+1.  **Automated Compliance Governance (SOC2 Types I & II)**
+    *   *The Problem*: Companies must prove to auditors that they scan for vulnerabilities quarterly.
+    *   *SentinelX Solution*: Generates cryptographic, time-stamped PDF reports that auditors accept as "Evidence of Controls", automating hundreds of hours of manual evidence collection.
+
+2.  **DevSecOps Pipeline Integration**
+    *   *The Problem*: Security is usually a "blocker" at the end of a release cycle.
+    *   *SentinelX Solution*: Runs automatically in GitHub Actions/GitLab CI. If a Critical vulnerability (e.g., SQLi) is found, the build fails *before* deployment, preventing expensive hotfixes.
+
+3.  **Third-Party Risk Management (TPRM)**
+    *   *The Problem*: Enterprises are liable for the security of the SaaS vendors they use.
+    *   *SentinelX Solution*: Large organizations use SentinelX to scan *their vendors'* public endpoints to verify their security claims before signing contracts.
+
+4.  **Cost Reduction (ROI)**
+    *   *The Problem*: Manual Penetration Testing costs $15k-$50k per app per year.
+    *   *SentinelX Solution*: Provides continuous, automated active scanning for a fraction of the cost, delivering "Pentest-Quality" results daily instead of annually.
+
 ## 🔄 Functional Workflow
 
 ```mermaid
