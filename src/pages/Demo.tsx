@@ -131,6 +131,8 @@ interface ScanResult {
     low: number;
     immune_count: number;
     security_score: number;
+    grade?: string;
+    risk_level?: string;
   };
   chart_data: {
     severity_distribution: {
@@ -1959,6 +1961,7 @@ const Demo = () => {
             {/* Scan Results */}
             {scanResult ? (
               <div className="space-y-8">
+
                 {/* Charts Section */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                   {/* Severity Distribution */}
